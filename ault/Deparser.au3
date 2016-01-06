@@ -17,7 +17,7 @@ Func _Ault_Deparse(Byref Const $aSt, $iBr = 1, $sIndent = "")
             Next
             Return $sOut
 
-        Case $AP_BR_NUMBER, $AP_BR_STR, $AP_BR_VARIABLE, $AP_BR_MACRO, $AP_BR_PREPROC, $AP_BR_KEYWORD
+        Case $AP_BR_NUMBER, $AP_BR_STR, $AP_BR_VARIABLE, $AP_BR_MACRO, $AP_BR_PREPROC, $AP_BR_KEYWORD, $AP_BR_FUNC
             Return $aSt[$iBr][$AP_STI_VALUE]
 
         Case $AP_BR_OP
@@ -39,8 +39,8 @@ Func _Ault_Deparse(Byref Const $aSt, $iBr = 1, $sIndent = "")
             Return "(" & _Ault_Deparse($aSt, $aSt[$iBr][$AP_STI_LEFT]) & ")"
 
         Case $AP_BR_FUNCCALL
-            $sOut = $aSt[$iBr][$AP_STI_VALUE] & "("
-            $aSplit = StringSplit($aSt[$iBr][$AP_STI_LEFT], ",")
+            $sOut = _Ault_Deparse($aSt, $aSt[$iBr][$AP_STI_LEFT]) & "("
+            $aSplit = StringSplit($aSt[$iBr][$AP_STI_RIGHT], ",")
             For $i = 1 To $aSplit[0]
                 $sOut &= _Ault_Deparse($aSt, $aSplit[$i]) & ", "
             Next

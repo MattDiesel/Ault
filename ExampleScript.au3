@@ -1,5 +1,3 @@
 
 
-If $x <> "" Then
-    Call("Home")
-EndIf
+MsgBox(0, "Test", "Hello")

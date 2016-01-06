@@ -100,7 +100,8 @@ Func __AuParse_ParseExpr_Nud(ByRef $lexer, ByRef $aSt, ByRef $tk, $tkPrev)
             $tkOBrack = $tk
 
             If __AuParse_Accept($lexer, $tk, $AL_TOK_OPAR) Then
-                $iStRet = __AuParse_ParseFuncCall($lexer, $aSt, $tk, $tkPrev)
+                $iFunc = __AuAST_AddBranchTok($aSt, $tkPrev)
+                $iStRet = __AuParse_ParseFuncCall($lexer, $aSt, $tk, $iFunc)
             ElseIf __AuParse_Accept($lexer, $tk, $AL_TOK_OBRACK) Then
                 $i = __AuAST_AddBranchTok($aSt, $tkPrev)
                 $iStRet = __AuParse_ParseArrayLookup($lexer, $aSt, $tk, $i, $tkOBRack)
@@ -143,7 +144,8 @@ Func __AuParse_ParseExpr_Nud(ByRef $lexer, ByRef $aSt, ByRef $tk, $tkPrev)
             $tkOBrack = $tk
 
             If __AuParse_Accept($lexer, $tk, $AL_TOK_OPAR) Then
-                $iStRet = __AuParse_ParseFuncCall($lexer, $aSt, $tk, $tkPrev)
+                $iFunc = __AuAST_AddBranchTok($aSt, $tkPrev)
+                $iStRet = __AuParse_ParseFuncCall($lexer, $aSt, $tk, $iFunc)
             ElseIf __AuParse_Accept($lexer, $tk, $AL_TOK_OBRACK) Then
                 $i = __AuAST_AddBranchTok($aSt, $tkPrev)
                 $iStRet = __AuParse_ParseArrayLookup($lexer, $aSt, $tk, $i, $tkOBrack)
@@ -393,7 +395,8 @@ Func __AuParse_ParseLine(ByRef $lexer, ByRef $aSt, ByRef $tk, $fTopLevel = False
                     Return SetError(@ScriptLineNumber, 0, 0)
                 EndIf
             ElseIf __AuParse_Accept($lexer, $tk, $AL_TOK_OPAR) Then ; Function call
-                $iStRet = __AuParse_ParseFuncCall($lexer, $aSt, $tk, $tkFirst)
+                $iFunc = __AuAST_AddBranchTok($aSt, $tkFirst)
+                $iStRet = __AuParse_ParseFuncCall($lexer, $aSt, $tk, $iFunc)
 
                 If Not __AuParse_Accept($lexer, $tk, $AL_TOK_EOL) _
                         And Not __AuParse_Accept($lexer, $tk, $AL_TOK_EOF) Then
@@ -432,7 +435,8 @@ Func __AuParse_ParseLine(ByRef $lexer, ByRef $aSt, ByRef $tk, $fTopLevel = False
             If __AuParse_Accept($lexer, $tk, $AL_TOK_OBRACK) Then ; Array Lookup
                 ; Todo
             ElseIf __AuParse_Accept($lexer, $tk, $AL_TOK_OPAR) Then ; Function call
-                $iStRet = __AuParse_ParseFuncCall($lexer, $aSt, $tk, $tkFirst)
+                $iFunc = __AuAST_AddBranchTok($aSt, $tkFirst)
+                $iStRet = __AuParse_ParseFuncCall($lexer, $aSt, $tk, $iFunc)
 
                 If Not __AuParse_Accept($lexer, $tk, $AL_TOK_EOL) _
                         And Not __AuParse_Accept($lexer, $tk, $AL_TOK_EOF) Then
@@ -463,7 +467,8 @@ Func __AuParse_ParseLine(ByRef $lexer, ByRef $aSt, ByRef $tk, $fTopLevel = False
             EndIf
         Case __AuParse_Accept($lexer, $tk, $AL_TOK_FUNC)
             If __AuParse_Accept($lexer, $tk, $AL_TOK_OPAR) Then ; Function call
-                $iStRet = __AuParse_ParseFuncCall($lexer, $aSt, $tk, $tkFirst)
+                $iFunc = __AuAST_AddBranchTok($aSt, $tkFirst)
+                $iStRet = __AuParse_ParseFuncCall($lexer, $aSt, $tk, $iFunc)
 
                 If Not __AuParse_Accept($lexer, $tk, $AL_TOK_EOL) _
                         And Not __AuParse_Accept($lexer, $tk, $AL_TOK_EOF) Then
@@ -931,10 +936,10 @@ Func __AuParse_ParseSwitch(ByRef $lexer, ByRef $aSt, ByRef $tk, $tkSwitch)
     Return $iStRet
 EndFunc   ;==>__AuParse_ParseSwitch
 
-Func __AuParse_ParseFuncCall(ByRef $lexer, ByRef $aSt, ByRef $tk, $tokFunc)
+Func __AuParse_ParseFuncCall(ByRef $lexer, ByRef $aSt, ByRef $tk, $iFunc)
     Local $i
 
-    Local $iStRet = __AuAST_AddBranch($aSt, $AP_BR_FUNCCALL, $tokFunc[$AL_TOKI_DATA], "", "", $tokFunc)
+    Local $iStRet = __AuAST_AddBranch($aSt, $AP_BR_FUNCCALL, "", $iFunc, "", $tk)
 
     If Not __AuParse_Accept($lexer, $tk, $AL_TOK_EPAR) Then
         Do
@@ -944,16 +949,16 @@ Func __AuParse_ParseFuncCall(ByRef $lexer, ByRef $aSt, ByRef $tk, $tokFunc)
                 Return SetError(@error, 0, 0)
             EndIf
 
-            $aSt[$iStRet][$AP_STI_LEFT] &= $i & ","
+            $aSt[$iStRet][$AP_STI_RIGHT] &= $i & ","
         Until Not __AuParse_Accept($lexer, $tk, $AL_TOK_COMMA)
-        $aSt[$iStRet][$AP_STI_LEFT] = StringTrimRight($aSt[$iStRet][$AP_STI_LEFT], 1)
+        $aSt[$iStRet][$AP_STI_RIGHT] = StringTrimRight($aSt[$iStRet][$AP_STI_RIGHT], 1)
 
         If Not __AuParse_Accept($lexer, $tk, $AL_TOK_EPAR) Then
             ; Error: Expected closing parenthesis.
             Return SetError(@ScriptLineNumber, 0, 0)
         EndIf
     Else
-        $aSt[$iStRet][$AP_STI_LEFT] = 0
+        $aSt[$iStRet][$AP_STI_RIGHT] = 0
     EndIf
 
     Return $iStRet

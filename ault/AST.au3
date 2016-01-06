@@ -76,6 +76,7 @@ Global Enum $AP_BR_FILE = $AL_TOK_EOF, _ ; Name|Body
         $AP_BR_MACRO = $AL_TOK_MACRO, _ ; Name
         $AP_BR_PREPROC = $AL_TOK_PREPROC, _ ; Line
         $AP_BR_KEYWORD = $AL_TOK_KEYWORD, _ ; Keyword
+        $AP_BR_FUNC = $AL_TOK_FUNC, _ ; Function
         $AP_BR_ENUMDEF = 100, _ ; Flags|0|Declarations (NB: Enums only)
         $AP_BR_DECL, _ ; Flags|Variable|Value
         $AP_BR_FUNCDEF, _ ; Name|Parameters|Body
@@ -91,7 +92,7 @@ Global Enum $AP_BR_FILE = $AL_TOK_EOF, _ ; Name|Body
         $AP_BR_REDIM, _ ; 0|Lookup|0
         $AP_BR_GROUP, _ ; 0|Expr
         $AP_BR_LOOKUP, _ ; 0|Variable|Indexes
-        $AP_BR_FUNCCALL, _ ; Name|Arguments
+        $AP_BR_FUNCCALL, _ ; 0|Function|Arguments
         $AP_BR_RETURN, _ ; 0|Expression
         $AP_BR_ARRAY, _ ; 0|Values
         $_AP_BR_COUNT

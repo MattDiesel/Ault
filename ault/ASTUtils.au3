@@ -13,5 +13,5 @@ Func _Ault_ViewAST(ByRef Const $aSt)
         $a[$i][0] = __AuAST_BrTypeToStr(Int($a[$i][0]))
     Next
 
-    _ArrayDisplay($a, "AST View")
+    _ArrayDisplay($a, "AST View", "", 0, "|", "TYPE|VALUE|LEFT|RIGHT|ABS|LINE|COL")
 EndFunc
