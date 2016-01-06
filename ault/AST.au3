@@ -76,7 +76,7 @@ Global Enum $AP_BR_FILE = $AL_TOK_EOF, _ ; Name|Body
         $AP_BR_MACRO = $AL_TOK_MACRO, _ ; Name
         $AP_BR_PREPROC = $AL_TOK_PREPROC, _ ; Line
         $AP_BR_KEYWORD = $AL_TOK_KEYWORD, _ ; Keyword
-        $AP_BR_ENUMDEF = 100, _ ; 0|Flags|Declarations (NB: Enums only)
+        $AP_BR_ENUMDEF = 100, _ ; Flags|0|Declarations (NB: Enums only)
         $AP_BR_DECL, _ ; Flags|Variable|Value
         $AP_BR_FUNCDEF, _ ; Name|Parameters|Body
         $AP_BR_IF, _ ; Condition|Elseifs|Body
