@@ -24,7 +24,7 @@ Func _Ault_ParseFile($sFile, $lexerFlags = $AL_FLAG_AUTOLINECONT)
 
     Local $ret = _Ault_Parse($l)
     Return SetError(@error, @extended, $ret)
-EndFunc
+EndFunc   ;==>_Ault_ParseFile
 
 Func _Ault_Parse(ByRef $lexer)
     Local $aSt[100][$_AP_STI_COUNT]
@@ -106,7 +106,7 @@ Func __AuParse_ParseExpr_Nud(ByRef $lexer, ByRef $aSt, ByRef $tk, $tkPrev)
                 $iStRet = __AuParse_ParseFuncCall($lexer, $aSt, $tk, $iFunc)
             ElseIf __AuParse_Accept($lexer, $tk, $AL_TOK_OBRACK) Then
                 $i = __AuAST_AddBranchTok($aSt, $tkPrev)
-                $iStRet = __AuParse_ParseArrayLookup($lexer, $aSt, $tk, $i, $tkOBRack)
+                $iStRet = __AuParse_ParseArrayLookup($lexer, $aSt, $tk, $i, $tkOBrack)
             Else
                 $iStRet = __AuAST_AddBranchTok($aSt, $tkPrev)
             EndIf
@@ -156,7 +156,7 @@ Func __AuParse_ParseExpr_Nud(ByRef $lexer, ByRef $aSt, ByRef $tk, $tkPrev)
             EndIf
 
         Case Else
-            _ArrayDisplay($tk, @SCriptLineNumber & ": Unexpected Token. ")
+            _ArrayDisplay($tk, @ScriptLineNumber & ": Unexpected Token. ")
             ; Error: Unexpected token.
             Return SetError(@ScriptLineNumber, 0, 0)
     EndSelect
@@ -533,7 +533,7 @@ Func __AuParse_ParseIf(ByRef $lexer, ByRef $aSt, ByRef $tk, $tkIf)
             If __AuParse_Accept($lexer, $tk, $AL_TOK_KEYWORD, "ElseIf") Then
                 If $fElse Then
                     ; Elseif appearing after else?
-                    Return SEtError(@ScriptLineNumber, 0, 0)
+                    Return SetError(@ScriptLineNumber, 0, 0)
                 EndIf
 
                 ; Tidy previous else
@@ -541,7 +541,7 @@ Func __AuParse_ParseIf(ByRef $lexer, ByRef $aSt, ByRef $tk, $tkIf)
 
                 ; Create new elseif branch
                 $iElseif = __AuAST_AddBranch($aSt, $AP_BR_IF, -1, "", "", $tkElse)
-                $aSt[$iStRet][$AP_STI_LEFT] &= $iElseIf & ","
+                $aSt[$iStRet][$AP_STI_LEFT] &= $iElseif & ","
 
                 ; Parse Condition
                 $iCondition = __AuParse_ParseExpr($lexer, $aSt, $tk)
@@ -549,7 +549,7 @@ Func __AuParse_ParseIf(ByRef $lexer, ByRef $aSt, ByRef $tk, $tkIf)
                     ; Error: Error parsing expression
                     Return SetError(@error, 0, $iCondition)
                 EndIf
-                $aSt[$iElseIf][$AP_STI_VALUE] = $iCondition
+                $aSt[$iElseif][$AP_STI_VALUE] = $iCondition
 
                 If Not __AuParse_Accept($lexer, $tk, $AL_TOK_KEYWORD, "Then") Then
                     ; Error: ElseIf statement has no matching Then
@@ -568,7 +568,7 @@ Func __AuParse_ParseIf(ByRef $lexer, ByRef $aSt, ByRef $tk, $tkIf)
 
                 ; Create new elseif branch
                 $iElseif = __AuAST_AddBranch($aSt, $AP_BR_IF, "", "", "", $tkElse)
-                $aSt[$iStRet][$AP_STI_LEFT] &= $iElseIf & ","
+                $aSt[$iStRet][$AP_STI_LEFT] &= $iElseif & ","
                 $fElse = True
 
                 If Not __AuParse_Accept($lexer, $tk, $AL_TOK_EOL) Then
@@ -612,7 +612,7 @@ Func __AuParse_ParseWhile(ByRef $lexer, ByRef $aSt, ByRef $tk, $tkWhile)
     Local $iCondition, $sBody, $i
 
     Local $iStRet = __AuAST_AddBranch($aSt, $AP_BR_WHILE, "", -1, "", _
-        $tkWhile)
+            $tkWhile)
 
     $iCondition = __AuParse_ParseExpr($lexer, $aSt, $tk)
     If @error Then
@@ -651,7 +651,7 @@ Func __AuParse_ParseFor(ByRef $lexer, ByRef $aSt, ByRef $tk, $tkFor)
 
 
     Local $iStRet = __AuAST_AddBranch($aSt, $AP_BR_FOR, "", -1, "", _
-        $tkFor)
+            $tkFor)
 
     ; Parse Variable
     Local $tkVar = $tk
@@ -763,7 +763,7 @@ Func __AuParse_ParseDo(ByRef $lexer, ByRef $aSt, ByRef $tk, $tkDo)
     Local $iCondition, $i
 
     Local $iStRet = __AuAST_AddBranch($aSt, $AP_BR_DO, "", -1, "", _
-        $tkDo)
+            $tkDo)
 
     If Not __AuParse_Accept($lexer, $tk, $AL_TOK_EOL) Then
         ; Error: Extra characters on line
@@ -852,9 +852,9 @@ Func __AuParse_ParseSelect(ByRef $lexer, ByRef $aSt, ByRef $tk, $tkSelect)
 
     ; Tidy up cases list
     If $iCase Then
-        $aSt[$iCase][$AP_STI_RIGHT] = STringTrimRight($aSt[$iCase][$AP_STI_RIGHT], 1)
+        $aSt[$iCase][$AP_STI_RIGHT] = StringTrimRight($aSt[$iCase][$AP_STI_RIGHT], 1)
     EndIf
-    $aSt[$iStRet][$AP_STI_RIGHT] = STringTrimRight($aSt[$iStRet][$AP_STI_RIGHT], 1)
+    $aSt[$iStRet][$AP_STI_RIGHT] = StringTrimRight($aSt[$iStRet][$AP_STI_RIGHT], 1)
 
     If Not __AuParse_Accept($lexer, $tk, $AL_TOK_EOL) Then
         ; Extra characters on line
@@ -913,7 +913,7 @@ Func __AuParse_ParseSwitch(ByRef $lexer, ByRef $aSt, ByRef $tk, $tkSwitch)
                     $aSt[$iCase][$AP_STI_LEFT] &= $iExpr & ","
                 Until Not __AuParse_Accept($lexer, $tk, $AL_TOK_COMMA)
 
-                $aSt[$iCase][$AP_STI_LEFT] = StringTRimRight($aSt[$iCase][$AP_STI_LEFT], 1)
+                $aSt[$iCase][$AP_STI_LEFT] = StringTrimRight($aSt[$iCase][$AP_STI_LEFT], 1)
             EndIf
 
             If Not __AuParse_Accept($lexer, $tk, $AL_TOK_EOL) Then
@@ -936,9 +936,9 @@ Func __AuParse_ParseSwitch(ByRef $lexer, ByRef $aSt, ByRef $tk, $tkSwitch)
 
     ; Tidy up cases list
     If $iCase Then
-        $aSt[$iCase][$AP_STI_RIGHT] = STringTrimRight($aSt[$iCase][$AP_STI_RIGHT], 1)
+        $aSt[$iCase][$AP_STI_RIGHT] = StringTrimRight($aSt[$iCase][$AP_STI_RIGHT], 1)
     EndIf
-    $aSt[$iStRet][$AP_STI_RIGHT] = STringTrimRight($aSt[$iStRet][$AP_STI_RIGHT], 1)
+    $aSt[$iStRet][$AP_STI_RIGHT] = StringTrimRight($aSt[$iStRet][$AP_STI_RIGHT], 1)
 
     If Not __AuParse_Accept($lexer, $tk, $AL_TOK_EOL) Then
         ; Extra characters on line
@@ -969,7 +969,7 @@ Func __AuParse_ParseFuncCall(ByRef $lexer, ByRef $aSt, ByRef $tk, $iFunc)
         If Not __AuParse_Accept($lexer, $tk, $AL_TOK_EPAR) Then
             ; Error: Expected closing parenthesis.
             Return SetError(@ScriptLineNumber, 0, _
-                _Error_Create("Expected closing parenthesis.", $aSt, $iStRet, $lexer, $tk))
+                    _Error_Create("Expected closing parenthesis.", $aSt, $iStRet, $lexer, $tk))
         EndIf
     Else
         $aSt[$iStRet][$AP_STI_RIGHT] = 0
@@ -1004,7 +1004,7 @@ Func __AuParse_ParseParamDecl(ByRef $lexer, ByRef $aSt, ByRef $tk)
 
     Local $iVar = __AuAST_AddBranchTok($aSt, $tk)
     Local $iStRet = __AuAST_AddBranch($aSt, $AP_BR_DECL, $iFlags, $iVar, "", _
-        $first[$AL_TOKI_ABS], $first[$AL_TOKI_LINE], $first[$AL_TOKI_COL])
+            $first[$AL_TOKI_ABS], $first[$AL_TOKI_LINE], $first[$AL_TOKI_COL])
 
     If Not __AuParse_Accept($lexer, $tk, $AL_TOK_VARIABLE) Then
         ; Error: Expected variable name
@@ -1029,7 +1029,7 @@ Func __AuParse_ParseFuncDecl(ByRef $lexer, ByRef $aSt, ByRef $tk)
     Local $sFuncName = $tk[$AL_TOKI_DATA], $i
 
     $iStRet = __AuAST_AddBranch($aSt, $AP_BR_FUNCDEF, $sFuncName, -1, -1, _
-            $tk[$AL_TOKI_ABS], $tk[$AL_TOKI_LINE],$tk[$AL_TOKI_COL])
+            $tk[$AL_TOKI_ABS], $tk[$AL_TOKI_LINE], $tk[$AL_TOKI_COL])
 
     If Not __AuParse_Accept($lexer, $tk, $AL_TOK_WORD) Then
         ; Error: Expected function name
@@ -1261,7 +1261,7 @@ Func __AuParse_ParseArrayLiteral(ByRef $lexer, ByRef $aSt, ByRef $tk, $tkOBrack)
 
         $aSt[$iStRet][$AP_STI_LEFT] &= $iExpr & ","
 
-        IF __AuParse_Accept($lexer, $tk, $AL_TOK_EBRACK) Then
+        If __AuParse_Accept($lexer, $tk, $AL_TOK_EBRACK) Then
             ExitLoop
         EndIf
         If Not __AuParse_Accept($lexer, $tk, $AL_TOK_COMMA) Then
@@ -1280,6 +1280,9 @@ EndFunc   ;==>__AuParse_ParseArrayLiteral
 Func __AuParse_GetTok(ByRef $lexer, ByRef $tk)
     Do
         $tk = _Ault_LexerStep($lexer)
+        If @error Then
+            ConsoleWrite("Lexer Error" & @LF)
+        EndIf
     Until $tk[$AL_TOKI_TYPE] <> $AL_TOK_COMMENT
 EndFunc   ;==>__AuParse_GetTok
 
