@@ -19,9 +19,10 @@ Global Enum _
 
 Func _Ault_ParseFile($sFile, $lexerFlags = $AL_FLAG_AUTOLINECONT)
     Local $l = _Ault_CreateLexer($sFile, $lexerFlags)
-    If @error Then Return SetError(@error, 0, 0)
+    If @error Then Return SetError(@error, 0, $l)
 
-    Return _Ault_Parse($l)
+    Local $ret = _Ault_Parse($l)
+    Return SetError(@error, @extended, $ret)
 EndFunc
 
 Func _Ault_Parse(ByRef $lexer)
@@ -45,7 +46,7 @@ Func _Ault_Parse(ByRef $lexer)
         $i = __AuParse_ParseLine($lexer, $aSt, $tk, True)
         If @error Then
             ; Error: Error parsing line
-            Return SetError(@error, 0, $aSt)
+            Return SetError(@error, 0, $i)
         ElseIf $i = -1 Then
             ExitLoop
         EndIf
@@ -66,7 +67,7 @@ Func __AuParse_ParseExpr(ByRef $lexer, ByRef $aSt, ByRef $tk, $rbp = 0)
     Local $left = __AuParse_ParseExpr_Nud($lexer, $aSt, $tk, $tkPrev)
     If @error Then
         ; Error: Unexpected token
-        Return SetError(@error, 0, 0)
+        Return SetError(@error, 0, $left)
     EndIf
 
     While __AuParse_ParseExpr_Lbp($tk) > $rbp
@@ -76,7 +77,7 @@ Func __AuParse_ParseExpr(ByRef $lexer, ByRef $aSt, ByRef $tk, $rbp = 0)
         $left = __AuParse_ParseExpr_Led($lexer, $aSt, $tk, $tkPrev, $left)
         If @error Then
             ; Error: Error parsing expression
-            Return SetError(@error, 0, 0)
+            Return SetError(@error, 0, $left)
         EndIf
     WEnd
 
@@ -116,7 +117,7 @@ Func __AuParse_ParseExpr_Nud(ByRef $lexer, ByRef $aSt, ByRef $tk, $tkPrev)
             $i = __AuParse_ParseExpr($lexer, $aSt, $tk, 0)
             If @error Then
                 ; Error: Error parsing expression
-                Return SetError(@error, 0, 0)
+                Return SetError(@error, 0, $i)
             EndIf
 
             If Not __AuParse_Accept($lexer, $tk, $AL_TOK_EPAR) Then
@@ -135,7 +136,7 @@ Func __AuParse_ParseExpr_Nud(ByRef $lexer, ByRef $aSt, ByRef $tk, $tkPrev)
             $i = __AuParse_ParseExpr($lexer, $aSt, $tk, $AP_OPPREC_NOT)
             If @error Then
                 ; Error: Error parsing expression
-                Return SetError(@error, 0, 0)
+                Return SetError(@error, 0, $i)
             EndIf
 
             $aSt[$iStRet][$AP_STI_LEFT] = $i
@@ -396,7 +397,12 @@ Func __AuParse_ParseLine(ByRef $lexer, ByRef $aSt, ByRef $tk, $fTopLevel = False
                 EndIf
             ElseIf __AuParse_Accept($lexer, $tk, $AL_TOK_OPAR) Then ; Function call
                 $iFunc = __AuAST_AddBranchTok($aSt, $tkFirst)
+
                 $iStRet = __AuParse_ParseFuncCall($lexer, $aSt, $tk, $iFunc)
+                If @error Then
+                    ; Error parsing func call
+                    Return SetError(@error, 0, $iStRet)
+                EndIf
 
                 If Not __AuParse_Accept($lexer, $tk, $AL_TOK_EOL) _
                         And Not __AuParse_Accept($lexer, $tk, $AL_TOK_EOF) Then
@@ -436,7 +442,12 @@ Func __AuParse_ParseLine(ByRef $lexer, ByRef $aSt, ByRef $tk, $fTopLevel = False
                 ; Todo
             ElseIf __AuParse_Accept($lexer, $tk, $AL_TOK_OPAR) Then ; Function call
                 $iFunc = __AuAST_AddBranchTok($aSt, $tkFirst)
+
                 $iStRet = __AuParse_ParseFuncCall($lexer, $aSt, $tk, $iFunc)
+                If @error Then
+                    ; Error: Error parsing function call
+                    Return SetError(@error, 0, $iStRet)
+                EndIf
 
                 If Not __AuParse_Accept($lexer, $tk, $AL_TOK_EOL) _
                         And Not __AuParse_Accept($lexer, $tk, $AL_TOK_EOF) Then
@@ -468,7 +479,12 @@ Func __AuParse_ParseLine(ByRef $lexer, ByRef $aSt, ByRef $tk, $fTopLevel = False
         Case __AuParse_Accept($lexer, $tk, $AL_TOK_FUNC)
             If __AuParse_Accept($lexer, $tk, $AL_TOK_OPAR) Then ; Function call
                 $iFunc = __AuAST_AddBranchTok($aSt, $tkFirst)
+
                 $iStRet = __AuParse_ParseFuncCall($lexer, $aSt, $tk, $iFunc)
+                If @error Then
+                    ; Error: Error parsing function call
+                    Return SetError(@error, 0, $iStRet)
+                EndIf
 
                 If Not __AuParse_Accept($lexer, $tk, $AL_TOK_EOL) _
                         And Not __AuParse_Accept($lexer, $tk, $AL_TOK_EOF) Then
@@ -497,7 +513,7 @@ Func __AuParse_ParseIf(ByRef $lexer, ByRef $aSt, ByRef $tk, $tkIf)
     $iCondition = __AuParse_ParseExpr($lexer, $aSt, $tk)
     If @error Then
         ; Error: Error parsing expression
-        Return SetError(@error, 0, 0)
+        Return SetError(@error, 0, $iCondition)
     EndIf
     $aSt[$iStRet][$AP_STI_VALUE] = $iCondition
 
@@ -560,11 +576,11 @@ Func __AuParse_ParseIf(ByRef $lexer, ByRef $aSt, ByRef $tk, $tkIf)
                 EndIf
             Else
                 $i = __AuParse_ParseLine($lexer, $aSt, $tk)
-
                 If @error Then
                     ; Error: Error parsing line
                     Return SetError(@error, 0, $i)
                 EndIf
+
                 $aSt[$iElseif][$AP_STI_RIGHT] &= $i & ","
             EndIf
         WEnd
@@ -578,10 +594,9 @@ Func __AuParse_ParseIf(ByRef $lexer, ByRef $aSt, ByRef $tk, $tkIf)
         EndIf
     Else
         Local $sBody = __AuParse_ParseLine($lexer, $aSt, $tk)
-
-        If $sBody = 0 Then
+        If @error Then
             ; Error: Error parsing line
-            Return SetError(@error, 0, 0)
+            Return SetError(@error, 0, $sBody)
         EndIf
 
         $aSt[$iStRet][$AP_STI_RIGHT] = $sBody
@@ -599,10 +614,9 @@ Func __AuParse_ParseWhile(ByRef $lexer, ByRef $aSt, ByRef $tk, $tkWhile)
         $tkWhile)
 
     $iCondition = __AuParse_ParseExpr($lexer, $aSt, $tk)
-
-    If $iCondition = 0 Then
+    If @error Then
         ; Error: Error parsing expression
-        Return SetError(@error, 0, 0)
+        Return SetError(@error, 0, $iCondition)
     EndIf
 
     $aSt[$iStRet][$AP_STI_LEFT] = $iCondition
@@ -614,10 +628,9 @@ Func __AuParse_ParseWhile(ByRef $lexer, ByRef $aSt, ByRef $tk, $tkWhile)
 
     While Not __AuParse_Accept($lexer, $tk, $AL_TOK_KEYWORD, "WEnd")
         $i = __AuParse_ParseLine($lexer, $aSt, $tk)
-
-        If $i = 0 Then
+        If @error Then
             ; Error: Error parsing line
-            Return SetError(@error, 0, 0)
+            Return SetError(@error, 0, $i)
         EndIf
 
         $aSt[$iStRet][$AP_STI_RIGHT] &= $i & ","
@@ -665,9 +678,9 @@ Func __AuParse_ParseFor(ByRef $lexer, ByRef $aSt, ByRef $tk, $tkFor)
 
         ; Parse From
         $iFrom = __AuParse_ParseExpr($lexer, $aSt, $tk)
-        If $iFrom = 0 Then
+        If @error Then
             ; Error: Error parsing expression
-            Return SetError(@error, 0, 0)
+            Return SetError(@error, 0, $iFrom)
         EndIf
         $aSt[$iStRet][$AP_STI_LEFT] = $iFrom
 
@@ -678,9 +691,9 @@ Func __AuParse_ParseFor(ByRef $lexer, ByRef $aSt, ByRef $tk, $tkFor)
 
         ; Parse To
         $iTo = __AuParse_ParseExpr($lexer, $aSt, $tk)
-        If $iTo = 0 Then
+        If @error Then
             ; Error: Error parsing expression
-            Return SetError(@error, 0, 0)
+            Return SetError(@error, 0, $iTo)
         EndIf
         $aSt[$iStRet][$AP_STI_LEFT] &= "," & $iTo
 
@@ -727,10 +740,9 @@ Func __AuParse_ParseFor(ByRef $lexer, ByRef $aSt, ByRef $tk, $tkFor)
 
     While Not __AuParse_Accept($lexer, $tk, $AL_TOK_KEYWORD, "Next")
         $i = __AuParse_ParseLine($lexer, $aSt, $tk)
-
-        If $i = 0 Then
+        If @error Then
             ; Error: Error parsing line
-            Return SetError(@error, 0, 0)
+            Return SetError(@error, 0, $i)
         EndIf
 
         $aSt[$iStRet][$AP_STI_RIGHT] &= $i & ","
@@ -760,10 +772,9 @@ Func __AuParse_ParseDo(ByRef $lexer, ByRef $aSt, ByRef $tk, $tkDo)
     ; Parse Body
     While Not __AuParse_Accept($lexer, $tk, $AL_TOK_KEYWORD, "Until")
         $i = __AuParse_ParseLine($lexer, $aSt, $tk)
-
-        If $i = 0 Then
+        If @error Then
             ; Error: Error parsing line
-            Return SetError(@error, 0, 0)
+            Return SetError(@error, 0, $i)
         EndIf
 
         $aSt[$iStRet][$AP_STI_RIGHT] &= $i & ","
@@ -772,9 +783,9 @@ Func __AuParse_ParseDo(ByRef $lexer, ByRef $aSt, ByRef $tk, $tkDo)
 
     ; Parse Condition
     $iCondition = __AuParse_ParseExpr($lexer, $aSt, $tk)
-    If $iCondition = 0 Then
+    If @error Then
         ; Error: Error parsing expression
-        Return SetError(@error, 0, 0)
+        Return SetError(@error, 0, $iCondition)
     EndIf
     $aSt[$iStRet][$AP_STI_LEFT] = $iCondition
 
@@ -815,9 +826,9 @@ Func __AuParse_ParseSelect(ByRef $lexer, ByRef $aSt, ByRef $tk, $tkSelect)
                 $aSt[$iCase][$AP_STI_VALUE] = "Else"
             Else
                 $iExpr = __AuParse_ParseExpr($lexer, $aSt, $tk)
-                If $iExpr = 0 Then
+                If @error Then
                     ; Error in case expression
-                    Return SetError(@error, 0, 0)
+                    Return SetError(@error, 0, $iExpr)
                 EndIf
                 $aSt[$iCase][$AP_STI_LEFT] = $iExpr
             EndIf
@@ -829,9 +840,9 @@ Func __AuParse_ParseSelect(ByRef $lexer, ByRef $aSt, ByRef $tk, $tkSelect)
         Else
             ; Another code line
             $iBody = __AuParse_ParseLine($lexer, $aSt, $tk)
-            If $iBody = 0 Then
+            If @error Then
                 ; Error: Error parsing line
-                Return SetError(@error, 0, 0)
+                Return SetError(@error, 0, $iBody)
             EndIf
 
             $aSt[$iCase][$AP_STI_RIGHT] &= $iBody & ","
@@ -861,9 +872,9 @@ Func __AuParse_ParseSwitch(ByRef $lexer, ByRef $aSt, ByRef $tk, $tkSwitch)
 
     ; Parse Expression
     $iExpr = __AuParse_ParseExpr($lexer, $aSt, $tk)
-    If $iExpr = 0 Then
+    If @error Then
         ; Error: Error parsing expression
-        Return SetError(@error, 0, 0)
+        Return SetError(@error, 0, $iExpr)
     EndIf
     $aSt[$iStRet][$AP_STI_LEFT] = $iExpr
 
@@ -894,9 +905,9 @@ Func __AuParse_ParseSwitch(ByRef $lexer, ByRef $aSt, ByRef $tk, $tkSwitch)
             Else
                 Do
                     $iExpr = __AuParse_ParseExpr($lexer, $aSt, $tk)
-                    If $iExpr = 0 Then
+                    If @error Then
                         ; Error in case expression
-                        Return SetError(@error, 0, 0)
+                        Return SetError(@error, 0, $iExpr)
                     EndIf
                     $aSt[$iCase][$AP_STI_LEFT] &= $iExpr & ","
                 Until Not __AuParse_Accept($lexer, $tk, $AL_TOK_COMMA)
@@ -913,9 +924,9 @@ Func __AuParse_ParseSwitch(ByRef $lexer, ByRef $aSt, ByRef $tk, $tkSwitch)
         Else
             ; Another code line
             $iBody = __AuParse_ParseLine($lexer, $aSt, $tk)
-            If $iBody = 0 Then
+            If @error Then
                 ; Error: Error parsing line
-                Return SetError(@error, 0, 0)
+                Return SetError(@error, 0, $iBody)
             EndIf
 
             $aSt[$iCase][$AP_STI_RIGHT] &= $iBody & ","
@@ -936,6 +947,7 @@ Func __AuParse_ParseSwitch(ByRef $lexer, ByRef $aSt, ByRef $tk, $tkSwitch)
     Return $iStRet
 EndFunc   ;==>__AuParse_ParseSwitch
 
+
 Func __AuParse_ParseFuncCall(ByRef $lexer, ByRef $aSt, ByRef $tk, $iFunc)
     Local $i
 
@@ -944,9 +956,9 @@ Func __AuParse_ParseFuncCall(ByRef $lexer, ByRef $aSt, ByRef $tk, $iFunc)
     If Not __AuParse_Accept($lexer, $tk, $AL_TOK_EPAR) Then
         Do
             $i = __AuParse_ParseExpr($lexer, $aSt, $tk)
-            If $i = 0 Then
+            If @error Then
                 ; Error: Error parsing function argument expression
-                Return SetError(@error, 0, 0)
+                Return SetError(@error, 0, $i)
             EndIf
 
             $aSt[$iStRet][$AP_STI_RIGHT] &= $i & ","
@@ -955,7 +967,8 @@ Func __AuParse_ParseFuncCall(ByRef $lexer, ByRef $aSt, ByRef $tk, $iFunc)
 
         If Not __AuParse_Accept($lexer, $tk, $AL_TOK_EPAR) Then
             ; Error: Expected closing parenthesis.
-            Return SetError(@ScriptLineNumber, 0, 0)
+            Return SetError(@ScriptLineNumber, 0, _
+                _Error_Create("Expected closing parenthesis.", $aSt, $iStRet, $lexer, $tk))
         EndIf
     Else
         $aSt[$iStRet][$AP_STI_RIGHT] = 0
@@ -1000,9 +1013,9 @@ Func __AuParse_ParseParamDecl(ByRef $lexer, ByRef $aSt, ByRef $tk)
     If __AuParse_Accept($lexer, $tk, $AL_TOK_OP, "=") Then
         ; Default value
         $iDefault = __AuParse_ParseExpr($lexer, $aSt, $tk)
-        If $iDefault = 0 Then
+        If @error Then
             ; Error parsing expression
-            Return SetError(@error, 0, 0)
+            Return SetError(@error, 0, $iDefault)
         EndIf
 
         $aSt[$iStRet][$AP_STI_RIGHT] = $iDefault
@@ -1032,9 +1045,9 @@ Func __AuParse_ParseFuncDecl(ByRef $lexer, ByRef $aSt, ByRef $tk)
         ; Parse Parameters
         Do
             $i = __AuParse_ParseParamDecl($lexer, $aSt, $tk)
-            If $i = 0 Then
+            If @error Then
                 ; Error: Error parsing parameter declaration
-                Return SetError(@error, 0, 0)
+                Return SetError(@error, 0, $i)
             EndIf
 
             $aSt[$iStRet][$AP_STI_LEFT] &= $i & ","
@@ -1056,9 +1069,9 @@ Func __AuParse_ParseFuncDecl(ByRef $lexer, ByRef $aSt, ByRef $tk)
     $aSt[$iStRet][$AP_STI_RIGHT] = ""
     While Not __AuParse_Accept($lexer, $tk, $AL_TOK_KEYWORD, "EndFunc")
         $i = __AuParse_ParseLine($lexer, $aSt, $tk)
-        If $i = 0 Then
+        If @error Then
             ; Error: Error parsing line
-            Return SetError(@error, 0, 0)
+            Return SetError(@error, 0, $i)
         EndIf
 
         $aSt[$iStRet][$AP_STI_RIGHT] &= $i & ","
@@ -1089,9 +1102,9 @@ Func __AuParse_ParseEnumDecls(ByRef $lexer, ByRef $aSt, ByRef $tk, $iFlags, $tkE
         $iValue = ""
         If __AuParse_Accept($lexer, $tk, $AL_TOK_OP, "=") Then ; Definition
             $iValue = __AuParse_ParseExpr($lexer, $aSt, $tk)
-            If $iValue = 0 Then
+            If @error Then
                 ; Error: Error parsing expression
-                Return SetError(@error, 0, 0)
+                Return SetError(@error, 0, $iValue)
             EndIf
         EndIf
         $aSt[$iDecl][$AP_STI_RIGHT] = $iValue
@@ -1133,15 +1146,15 @@ Func __AuParse_ParseDecls(ByRef $lexer, ByRef $aSt, ByRef $tk, $iFlags)
         ; PArse Value
         $tkPrev = $tk
         If __AuParse_Accept($lexer, $tk, $AL_TOK_OBRACK) Then ; Array Decl
-            __AuParse_ParseDeclArray($lexer, $aSt, $tk, $iDecl, $iVar, $tkPrev)
-            If @error Then Return SetError(@error, @extended, 0)
+            Local $err = __AuParse_ParseDeclArray($lexer, $aSt, $tk, $iDecl, $iVar, $tkPrev)
+            If @error Then Return SetError(@error, 0, $err)
         Else
             $iValue = ""
             If __AuParse_Accept($lexer, $tk, $AL_TOK_OP, "=") Then ; Definition
                 $iValue = __AuParse_ParseExpr($lexer, $aSt, $tk)
-                If $iValue = 0 Then
+                If @error Then
                     ; Error: Error parsing expression
-                    Return SetError(@error, 0, 0)
+                    Return SetError(@error, 0, $iValue)
                 EndIf
             EndIf
 
@@ -1167,9 +1180,9 @@ Func __AuParse_ParseDeclArray(ByRef $lexer, ByRef $aSt, ByRef $tk, $iStRet, $iVa
     ; Parse Lookup
     ; $iVariable = __AuAST_AddBranchTok($aSt, $tkVar)
     $iLookup = __AuParse_ParseArrayLookup($lexer, $aSt, $tk, $iVar, $tkOBrack)
-    If $iLookup = 0 Then
+    If @error Then
         ; Error: Error parsing lookup
-        Return SetError(@error, 0, 0)
+        Return SetError(@error, 0, $iLookup)
     EndIf
     $aSt[$iStRet][$AP_STI_LEFT] = $iLookup
 
@@ -1180,9 +1193,9 @@ Func __AuParse_ParseDeclArray(ByRef $lexer, ByRef $aSt, ByRef $tk, $iStRet, $iVa
 
         If __AuParse_Accept($lexer, $tk, $AL_TOK_OBRACK, Default) Then
             $iLiteral = __AuParse_ParseArrayLiteral($lexer, $aSt, $tk, $tkOBrack)
-            If $iLiteral = 0 Then
+            If @error Then
                 ; Error: Error parsing array literal
-                Return SetError(@error, 0, 0)
+                Return SetError(@error, 0, $iLiteral)
             EndIf
 
             $aSt[$iStRet][$AP_STI_RIGHT] = $iLiteral
@@ -1205,10 +1218,9 @@ Func __AuParse_ParseArrayLookup(ByRef $lexer, ByRef $aSt, ByRef $tk, $iVar, $tkO
 
     Do
         $i = __AuParse_ParseExpr($lexer, $aSt, $tk)
-
-        If $i = 0 Then
+        If @error Then
             ; Error: Error parsing expression
-            Return SetError(@error, 0, 0)
+            Return SetError(@error, 0, $i)
         EndIf
 
         If Not __AuParse_Accept($lexer, $tk, $AL_TOK_EBRACK) Then
@@ -1234,15 +1246,15 @@ Func __AuParse_ParseArrayLiteral(ByRef $lexer, ByRef $aSt, ByRef $tk, $tkOBrack)
         If __AuParse_Accept($lexer, $tk, $AL_TOK_OBRACK) Then
             ; Nested array
             $iExpr = __AuParse_ParseArrayLiteral($lexer, $aSt, $tk, $tkOBrack)
-            If $iExpr = 0 Then
+            If @error Then
                 ; Error parsing nested array
-                Return SetError(@error, 0, 0)
+                Return SetError(@error, 0, $iExpr)
             EndIf
         Else
             $iExpr = __AuParse_ParseExpr($lexer, $aSt, $tk)
-            If $iExpr = 0 Then
+            If @error Then
                 ; Error parsing expression
-                Return SetError(@error, 0, 0)
+                Return SetError(@error, 0, $iExpr)
             EndIf
         EndIf
 
