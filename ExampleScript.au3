@@ -1,3 +1,2 @@
 
-
-MsgBox(0, "Test", "Hello")
+#include "Test.au3"

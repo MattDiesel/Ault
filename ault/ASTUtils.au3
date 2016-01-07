@@ -14,4 +14,4 @@ Func _Ault_ViewAST(ByRef Const $aSt)
     Next
 
     _ArrayDisplay($a, "AST View", "", 0, "|", "TYPE|VALUE|LEFT|RIGHT|ABS|LINE|COL")
-EndFunc
+EndFunc   ;==>_Ault_ViewAST
