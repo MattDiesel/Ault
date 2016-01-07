@@ -1277,15 +1277,3 @@ Func __AuParse_Accept(ByRef $lexer, ByRef $tk, $iTokType = Default, $sTokData = 
     __AuParse_GetTok($lexer, $tk)
     Return True
 EndFunc   ;==>__AuParse_Accept
-
-Func __AuParse_AcceptP(ByRef $lexer, ByRef $tk, $iTokType, $sTokData, ByRef $abs, ByRef $line, ByRef $col)
-    If $iTokType <> Default And $tk[$AL_TOKI_TYPE] <> $iTokType Then Return False
-    If $sTokData <> Default And $tk[$AL_TOKI_DATA] <> $sTokData Then Return False
-
-    $abs = $lexer[$AL_LEXI_LASTTOK_ABS]
-    $line = $lexer[$AL_LEXI_LASTTOK_LINE]
-    $col = $lexer[$AL_LEXI_LASTTOK_COL]
-
-    __AuParse_GetTok($lexer, $tk)
-    Return True
-EndFunc   ;==>__AuParse_AcceptP
