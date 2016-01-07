@@ -30,6 +30,11 @@ Func _Ault_Parse(ByRef $lexer)
     Local $aSt[100][$_AP_STI_COUNT]
     $aSt[0][0] = 0
 
+    _Ault_ParseChild($lexer, $aSt)
+    Return SetError(@error, @extended, $aSt)
+EndFunc
+
+Func _Ault_ParseChild(ByRef $lexer, ByRef $aSt, $tkIncl = 0)
     If Not IsArray($lexer) Then
         ConsoleWrite("Dude. That needs to be an array." & @LF)
         Return SetError(@ScriptLineNumber, 0, 0)
@@ -40,7 +45,11 @@ Func _Ault_Parse(ByRef $lexer)
     Local $tk[$_AL_TOKI_COUNT]
     __AuParse_GetTok($lexer, $tk)
 
-    $iSt = __AuAST_AddBranch($aSt, $AP_BR_FILE, $lexer[$AL_LEXI_FILENAME])
+    If IsArray($tkIncl) Then
+        $iSt = __AuAST_AddBranchTok($aSt, $tkIncl)
+    Else
+        $iSt = __AuAST_AddBranch($aSt, $AP_BR_FILE, $lexer[$AL_LEXI_FILENAME])
+    EndIf
 
     Local $i
     While $tk[$AL_TOKI_TYPE] <> $AL_TOK_EOF
@@ -56,7 +65,9 @@ Func _Ault_Parse(ByRef $lexer)
     WEnd
     $aSt[$iSt][$AP_STI_LEFT] = StringTrimRight($aSt[$iSt][$AP_STI_LEFT], 1)
 
-    Return $aSt
+    ConsoleWrite("End Of File: " & $iSt & @LF)
+
+    Return $iSt
 EndFunc   ;==>_Ault_Parse
 
 
@@ -231,6 +242,8 @@ Func __AuParse_ParseLine(ByRef $lexer, ByRef $aSt, ByRef $tk, $fTopLevel = False
     EndIf
 
     Select
+        Case __AuParse_Accept($lexer, $tk, $AL_TOK_INCLUDE)
+            Return _Ault_ParseChild($lexer, $aSt, $tkFirst)
         Case $fTopLevel And __AuParse_Accept($lexer, $tk, $AL_TOK_EOF)
             Return -1
         Case __AuParse_Accept($lexer, $tk, $AL_TOK_PREPROC)

@@ -76,6 +76,8 @@ EndFunc   ;==>__Error_GetLine
 
 Func _Ault_ErrorMsg($err)
 
+    If Not IsArray($err) Then Return "Unknown Error."
+
     Return StringFormat("""%s"" (%d:%d) : ==> %s:" & @LF & "%s" & @LF & "%s^ ERROR", _
             $err[$AULT_ERRI_FILE], $err[$AULT_ERRI_LINE], $err[$AULT_ERRI_COL], _
             $err[$AULT_ERRI_MSG], _

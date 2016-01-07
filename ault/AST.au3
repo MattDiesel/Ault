@@ -67,8 +67,7 @@
 
 
 ; Branch Types
-Global Enum $AP_BR_FILE = $AL_TOK_EOF, _ ; Name|Body
-        $AP_BR_NUMBER = $AL_TOK_NUMBER, _ ; Value
+Global Enum $AP_BR_NUMBER = $AL_TOK_NUMBER, _ ; Value
         $AP_BR_OP = $AL_TOK_OP, _ ; Name|Left|Right
         $AP_BR_ASSIGN = $AL_TOK_ASSIGN, _ ; Operator|LEft|Right
         $AP_BR_STR = $AL_TOK_STR, _ ; Value
@@ -77,6 +76,7 @@ Global Enum $AP_BR_FILE = $AL_TOK_EOF, _ ; Name|Body
         $AP_BR_PREPROC = $AL_TOK_PREPROC, _ ; Line
         $AP_BR_KEYWORD = $AL_TOK_KEYWORD, _ ; Keyword
         $AP_BR_FUNC = $AL_TOK_FUNC, _ ; Function
+        $AP_BR_FILE = $AL_TOK_INCLUDE, _ ; Include
         $AP_BR_ENUMDEF = 100, _ ; Flags|0|Declarations (NB: Enums only)
         $AP_BR_DECL, _ ; Flags|Variable|Value
         $AP_BR_FUNCDEF, _ ; Name|Parameters|Body

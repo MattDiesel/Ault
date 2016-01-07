@@ -5,6 +5,7 @@
 
 #include "Defs.au3"
 #include "Token.au3"
+#include "Installation.au3"
 
 
 Global Enum Step *2 _
@@ -20,6 +21,7 @@ Global Enum $AL_LEXI_FILENAME = 0, _
         $AL_LEXI_LINE, _
         $AL_LEXI_COL, _
         $AL_LEXI_PARENT, _
+        $AL_LEXI_INCLONCE, _
         $__AL_LEXI_COUNT
 
 Global Enum $AL_ST_START = -1, _
@@ -42,6 +44,7 @@ Global Enum $AL_ST_START = -1, _
         $AL_ST_PREPROCLINE, _
         $AL_ST_INCLUDELINE, _
         $AL_ST_LINECONT, _
+        $AL_ST_PREPROCLINE_IGNORE, _
         $AL_ST_KEYWORD
 
 
@@ -142,6 +145,7 @@ Func _Ault_CreateLexerFromString($sName, $sData, $iFlags)
     $lexRet[$AL_LEXI_COL] = 1
 
     $lexRet[$AL_LEXI_PARENT] = 0
+    $lexRet[$AL_LEXI_INCLONCE] = ";"
 
     Return $lexRet
 EndFunc   ;==>_Ault_CreateLexerFromString
@@ -166,6 +170,15 @@ Func _Ault_LexerStep(ByRef $lex)
             Case $AL_ST_START
                 Select
                     Case $c = ""
+                        If IsArray($lex[$AL_LEXI_PARENT]) Then
+                            Local $sFileEnding = $lex[$AL_LEXI_FILENAME]
+                            Local $sInclOnce = $lex[$AL_LEXI_INCLONCE]
+                            $lex = $lex[$AL_LEXI_PARENT]
+                            $lex[$AL_LEXI_INCLONCE] &= StringTrimLeft($sInclOnce, 1)
+
+                            Return __AuTok_Make($AL_TOK_EOF, $sFileEnding, $lex[$AL_LEXI_ABS], $lex[$AL_LEXI_LINE], $lex[$AL_LEXI_COL])
+                        EndIf
+
                         Return __AuTok_Make($AL_TOK_EOF, "", $lex[$AL_LEXI_ABS], $lex[$AL_LEXI_LINE], $lex[$AL_LEXI_COL])
                     Case __AuLex_StrIsNewLine($c)
                         If BitAND($lex[$AL_LEXI_FLAGS], $__AL_FLAG_LINECONT) Then
@@ -407,6 +420,24 @@ Func _Ault_LexerStep(ByRef $lex)
                         Case "#include"
                             If Not BitAND($lex[$AL_LEXI_FLAGS], $AL_FLAG_AUTOINCLUDE) Then ContinueCase
                             $iState = $AL_ST_INCLUDELINE
+                        Case "#include-once"
+                            If Not BitAND($lex[$AL_LEXI_FLAGS], $AL_FLAG_AUTOINCLUDE) Then ContinueCase
+
+                            Local $l = $lex, $fFound = False
+                            Do
+                                If StringInStr($l[$AL_LEXI_INCLONCE], ";" & $lex[$AL_LEXI_FILENAME] & ";") Then
+                                    $fFound = True
+                                    ExitLoop
+                                EndIf
+                                $l = $l[$AL_LEXI_PARENT]
+                            Until Not IsArray($l)
+
+                            ; Add to list if not already there.
+                            If Not $fFound Then
+                                $lex[$AL_LEXI_INCLONCE] &= $lex[$AL_LEXI_FILENAME] & ";"
+                            EndIf
+
+                            $iState = $AL_ST_PREPROCLINE_IGNORE
                         Case Else
                             If __AuLex_StrIsNewLine($c) Then
                                 __AuLex_PrevChar($lex)
@@ -422,6 +453,10 @@ Func _Ault_LexerStep(ByRef $lex)
                     __AuLex_PrevChar($lex)
                     $tokRet[$AL_TOKI_TYPE] = $AL_TOK_PREPROC
                     ExitLoop
+                EndIf
+            Case $AL_ST_PREPROCLINE_IGNORE
+                If __AuLex_StrIsNewLine($c) Or $c = "" Then
+                    $iState = $AL_ST_START
                 EndIf
             Case $AL_ST_INCLUDELINE
                 If __AuLex_StrIsNewLine($c) Or $c = "" Then
@@ -439,7 +474,42 @@ Func _Ault_LexerStep(ByRef $lex)
 
                             $c2 = StringTrimLeft(StringTrimRight($c2, 1), 1)
 
-                            ; TODO
+                            ; Resolve file path
+                            $c2 = _AutoIt_ResolveInclude($lex[$AL_LEXI_FILENAME], $c2, True)
+                            If @error Then
+                                ; Include file not found
+                                Return SetError(@ScriptLineNumber, 0, "")
+                            EndIf
+
+                            ; Check #include-once
+                            Local $l = $lex, $fFound = False
+                            Do
+                                If StringInStr($l[$AL_LEXI_INCLONCE], ";" & $c2 & ";") Then
+                                    $fFound = True
+                                    ExitLoop
+                                EndIf
+                                $l = $l[$AL_LEXI_PARENT]
+                            Until Not IsArray($l)
+
+                            ; Parse new include if not already included.
+                            If Not $fFound Then
+                                Local $lexNew = _Ault_CreateLexer($c2, $lex[$AL_LEXI_FLAGS])
+                                If @error Then
+                                    ; Error creating new lexer
+                                    Return SetErroR(@error, 0, $lexNew)
+                                EndIf
+
+                                $lexNew[$AL_LEXI_PARENT] = $lex
+                                $lex = $lexNew
+
+                                ; Return include line
+                                __AuLex_PrevChar($lex)
+                                $tokRet[$AL_TOKI_TYPE] = $AL_TOK_INCLUDE
+                                $tokRet[$AL_TOKI_DATA] = $c2
+                                Return $tokRet
+                            EndIf
+
+                            $iState = $AL_ST_PREPROCLINE_IGNORE
                         Case '<'
                             If StringRight($c2, 1) <> '>' Then
                                 ; ERROR: Incorrect include line
@@ -448,15 +518,46 @@ Func _Ault_LexerStep(ByRef $lex)
 
                             $c2 = StringTrimLeft(StringTrimRight($c2, 1), 1)
 
-                            ; TODO
+                            ; Resolve file path
+                            $c2 = _AutoIt_ResolveInclude($lex[$AL_LEXI_FILENAME], $c2, False)
+                            If @error Then
+                                ; Include file not found
+                                Return SetError(@ScriptLineNumber, 0, "")
+                            EndIf
+
+                            ; Check #include-once
+                            Local $l = $lex, $fFound = False
+                            Do
+                                If StringInStr($l[$AL_LEXI_INCLONCE], ";" & $c2 & ";") Then
+                                    $fFound = True
+                                    ExitLoop
+                                EndIf
+                                $l = $l[$AL_LEXI_PARENT]
+                            Until Not IsArray($l)
+
+                            ; Parse new include if not already included.
+                            If Not $fFound Then
+                                Local $lexNew = _Ault_CreateLexer($c2, $lex[$AL_LEXI_FLAGS])
+                                If @error Then
+                                    ; Error creating new lexer
+                                    Return SetErroR(@error, 0, $lexNew)
+                                EndIf
+
+                                $lexNew[$AL_LEXI_PARENT] = $lex
+                                $lex = $lexNew
+
+                                ; Return include line
+                                __AuLex_PrevChar($lex)
+                                $tokRet[$AL_TOKI_TYPE] = $AL_TOK_INCLUDE
+                                $tokRet[$AL_TOKI_DATA] = $c2
+                                Return $tokRet
+                            EndIf
+
+                            $iState = $AL_ST_PREPROCLINE_IGNORE
                         Case Else
                             ; ERROR: Incorrect include line
                             Return SetError(@ScriptLineNumber, 0, "")
                     EndSwitch
-
-                    __AuLex_PrevChar($lex)
-                    $tokRet[$AL_TOKI_TYPE] = $AL_TOK_PREPROC
-                    ExitLoop
                 EndIf
             Case $AL_ST_LINECONT
                 If $c = ";" Then

@@ -21,6 +21,7 @@ Global Enum $AL_TOK_EOF = 0, _ ; End of File
         $AL_TOK_PREPROC, _; Preprocessor statement. NB returns whole line and does no processing apart from #cs and #ce
         $AL_TOK_COMMENT, _ ; Comment. Includes multiline.
         $AL_TOK_LINECONT, _ ; Line continuation _ (only used if $AL_FLAG_AUTOLINECONT not set)
+        $AL_TOK_INCLUDE, _ ; Include statement
         $_AL_TOK_COUNT
 
 ; For conversion from token type number to name
@@ -43,7 +44,8 @@ Global Const $_AL_TOK_NAMES[$_AL_TOK_COUNT] = [ _
         "Variable", _
         "Pre-processor Statement", _
         "Comment", _
-        "Line Continuation"]
+        "Line Continuation", _
+        "Include"]
 
 ; Constants for accessing a Token array
 Global Enum _
