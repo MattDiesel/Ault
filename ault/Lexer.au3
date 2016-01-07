@@ -19,6 +19,7 @@ Global Enum $AL_LEXI_FILENAME = 0, _
         $AL_LEXI_ABS, _
         $AL_LEXI_LINE, _
         $AL_LEXI_COL, _
+        $AL_LEXI_PARENT, _
         $__AL_LEXI_COUNT
 
 Global Enum $AL_ST_START = -1, _
@@ -139,6 +140,8 @@ Func _Ault_CreateLexerFromString($sName, $sData, $iFlags)
     $lexRet[$AL_LEXI_ABS] = 1
     $lexRet[$AL_LEXI_LINE] = 1
     $lexRet[$AL_LEXI_COL] = 1
+
+    $lexRet[$AL_LEXI_PARENT] = 0
 
     Return $lexRet
 EndFunc   ;==>_Ault_CreateLexerFromString
@@ -478,6 +481,9 @@ Func _Ault_LexerStep(ByRef $lex)
                     $tokRet[$AL_TOKI_TYPE] = $AL_TOK_WORD
                     ExitLoop
                 EndIf
+            Case Else
+                ; Serious issue with the lexer.
+                Return SetError(@ScriptLineNumber, 0, 0)
         EndSwitch
     WEnd
 
