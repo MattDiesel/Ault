@@ -19,6 +19,8 @@
 ;     ConsoleWrite(StringFormat("%s: %s\n", __AuTok_TypeToStr($aTok[$AL_TOKI_TYPE]), $aTok[$AL_TOKI_DATA]))
 ; Until $aTok[$AL_TOKI_TYPE] = $AL_TOK_EOF
 
+
+; Local $a = _Ault_ParseFile("C:\Program Files (x86)\AutoIt3\Beta\Include\Array.au3")
 Local $a = _Ault_ParseFile("ExampleScript.au3", $AL_FLAG_AUTOINCLUDE)
 ; Local $a = _Ault_ParseFile("ault\Deparser.au3")
 

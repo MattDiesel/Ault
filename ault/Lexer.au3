@@ -593,7 +593,9 @@ Func _Ault_LexerStep(ByRef $lex)
 
     $tokRet[$AL_TOKI_DATA] = StringStripWS($tokRet[$AL_TOKI_DATA], 3)
 
-    If $tokRet[$AL_TOKI_TYPE] = $AL_TOK_WORD And _
+    If $tokRet[$AL_TOKI_DATA] = "Or" Or $tokRet[$AL_TOKI_DATA] = "And" Then
+        $tokRet[$AL_TOKI_TYPE] = $AL_TOK_OP
+    ElseIf $tokRet[$AL_TOKI_TYPE] = $AL_TOK_WORD And _
             Not BitAND($lex[$AL_LEXI_FLAGS], $AL_FLAG_NORESOLVEKEYWORD) Then
         If _Ault_IsKeyword($tokRet[$AL_TOKI_DATA]) Then
             $tokRet[$AL_TOKI_TYPE] = $AL_TOK_KEYWORD

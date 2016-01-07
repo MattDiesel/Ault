@@ -30,8 +30,10 @@ Func _Ault_Parse(ByRef $lexer)
     Local $aSt[100][$_AP_STI_COUNT]
     $aSt[0][0] = 0
 
-    _Ault_ParseChild($lexer, $aSt)
-    Return SetError(@error, @extended, $aSt)
+    $err = _Ault_ParseChild($lexer, $aSt)
+    If @error Then Return SetError(@error, @extended, $err)
+
+    REturn $aSt
 EndFunc
 
 Func _Ault_ParseChild(ByRef $lexer, ByRef $aSt, $tkIncl = 0)
@@ -64,8 +66,6 @@ Func _Ault_ParseChild(ByRef $lexer, ByRef $aSt, $tkIncl = 0)
         $aSt[$iSt][$AP_STI_LEFT] &= $i & ","
     WEnd
     $aSt[$iSt][$AP_STI_LEFT] = StringTrimRight($aSt[$iSt][$AP_STI_LEFT], 1)
-
-    ConsoleWrite("End Of File: " & $iSt & @LF)
 
     Return $iSt
 EndFunc   ;==>_Ault_Parse
@@ -182,7 +182,6 @@ Func __AuParse_ParseExpr_Led(ByRef $lexer, ByRef $aSt, ByRef $tk, $tkPrev, $left
         ; Error: Expected operator.
         Return SetError(@ScriptLineNumber, 0, 0)
     EndIf
-
 
     Switch $tkPrev[$AL_TOKI_DATA]
         Case "^", "*", "/", "+", "-", "&", "=", "==", "<", ">", "<=", ">=", "<>", "And", "Or"
@@ -381,7 +380,7 @@ Func __AuParse_ParseLine(ByRef $lexer, ByRef $aSt, ByRef $tk, $fTopLevel = False
 
                 $i = __AuAST_AddBranchTok($aSt, $tkFirst)
 
-                $i = __AuParse_ParseArrayLookup($lexer, $aSt, $tk, $i)
+                $i = __AuParse_ParseArrayLookup($lexer, $aSt, $tk, $i, $op)
                 If @error Then
                     ; Error: Error parsing array lookup
                     Return SetError(@error, 0, $i)
@@ -512,7 +511,9 @@ Func __AuParse_ParseLine(ByRef $lexer, ByRef $aSt, ByRef $tk, $fTopLevel = False
         Case Else
             _ArrayDisplay($tk, @ScriptLineNumber & ": Unexpected Token.")
             ; Error: Unexpected token.
-            Return SetError(@ScriptLineNumber, 0, 0)
+            Return SetError(@ScriptLineNumber, 0, _
+                    _Error_Create("Unexpected token starting a line '" & __AuTok_TypeToStr($tk[$AL_TOKI_TYPE]) & "'.", _
+                        $aSt, $iStRet, $lexer, $tk))
     EndSelect
 
     Return SetError(@error, 0, $iStRet)
