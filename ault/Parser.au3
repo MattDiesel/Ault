@@ -5,6 +5,7 @@
 #include "Lexer.au3"
 #include "AST.au3"
 #include "Token.au3"
+#include "ErrorHandler.au3"
 
 
 Global Enum _
