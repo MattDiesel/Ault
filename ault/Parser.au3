@@ -953,10 +953,7 @@ Func __AuParse_ParseFuncCall(ByRef $lexer, ByRef $aSt, ByRef $tk, $iFunc)
     If Not __AuParse_Accept($lexer, $tk, $AL_TOK_EPAR) Then
         Do
             $i = __AuParse_ParseExpr($lexer, $aSt, $tk)
-            If @error Then
-                ; Error: Error parsing function argument expression
-                Return SetError(@error, 0, $i)
-            EndIf
+            If @error Then Return SetError(@error, 0, $i)
 
             $aSt[$iStRet][$AP_STI_RIGHT] &= $i & ","
         Until Not __AuParse_Accept($lexer, $tk, $AL_TOK_COMMA)
@@ -967,8 +964,6 @@ Func __AuParse_ParseFuncCall(ByRef $lexer, ByRef $aSt, ByRef $tk, $iFunc)
             Return SetError(@ScriptLineNumber, 0, _
                     _Error_Create("Expected closing parenthesis.", $aSt, $iStRet, $lexer, $tk))
         EndIf
-    Else
-        $aSt[$iStRet][$AP_STI_RIGHT] = 0
     EndIf
 
     Return $iStRet
