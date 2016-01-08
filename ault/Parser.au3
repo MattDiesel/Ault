@@ -42,10 +42,12 @@ Func _Ault_ParseChild(ByRef $lexer, ByRef $aSt, $tkIncl = 0)
         Return SetError(@ScriptLineNumber, 0, 0)
     EndIf
 
-    Local $iSt
+    Local $iSt, $err
 
     Local $tk[$_AL_TOKI_COUNT]
-    __AuParse_GetTok($lexer, $tk)
+
+    $err = __AuParse_GetTok($lexer, $tk)
+    If @error Then Return SetError(@error, 0, $err)
 
     If IsArray($tkIncl) Then
         $iSt = __AuAST_AddBranchTok($aSt, $tkIncl)
@@ -56,12 +58,9 @@ Func _Ault_ParseChild(ByRef $lexer, ByRef $aSt, $tkIncl = 0)
     Local $i
     While $tk[$AL_TOKI_TYPE] <> $AL_TOK_EOF
         $i = __AuParse_ParseLine($lexer, $aSt, $tk, True)
-        If @error Then
-            ; Error: Error parsing line
-            Return SetError(@error, 0, $i)
-        ElseIf $i = -1 Then
-            ExitLoop
-        EndIf
+        If @error Then Return SetError(@error, 0, $i)
+
+        If $i = -1 Then ExitLoop ; Shouldn't happen?
 
         If $i Then $aSt[$iSt][$AP_STI_LEFT] &= $i & ","
     WEnd
@@ -73,31 +72,29 @@ EndFunc   ;==>_Ault_Parse
 
 
 Func __AuParse_ParseExpr(ByRef $lexer, ByRef $aSt, ByRef $tk, $rbp = 0)
-    Local $tkPrev = $tk
-    __AuParse_GetTok($lexer, $tk)
+    Local $tkPrev = $tk, $err
+
+    $err = __AuParse_GetTok($lexer, $tk)
+    If @error Then Return SetError(@error, 0, $err)
 
     Local $left = __AuParse_ParseExpr_Nud($lexer, $aSt, $tk, $tkPrev)
-    If @error Then
-        ; Error: Unexpected token
-        Return SetError(@error, 0, $left)
-    EndIf
+    If @error Then Return SetError(@error, 0, $left)
 
     While __AuParse_ParseExpr_Lbp($tk) > $rbp
         $tkPrev = $tk
-        __AuParse_GetTok($lexer, $tk)
+
+        $err = __AuParse_GetTok($lexer, $tk)
+        If @error Then Return SetError(@error, 0, $err)
 
         $left = __AuParse_ParseExpr_Led($lexer, $aSt, $tk, $tkPrev, $left)
-        If @error Then
-            ; Error: Error parsing expression
-            Return SetError(@error, 0, $left)
-        EndIf
+        If @error Then Return SetError(@error, 0, $left)
     WEnd
 
     Return $left
 EndFunc   ;==>__AuParse_ParseExpr
 
 Func __AuParse_ParseExpr_Nud(ByRef $lexer, ByRef $aSt, ByRef $tk, $tkPrev)
-    Local $iStRet, $i
+    Local $iStRet, $i, $err
 
     Select
         Case ($tkPrev[$AL_TOKI_TYPE] = $AL_TOK_NUMBER) Or _
@@ -112,12 +109,19 @@ Func __AuParse_ParseExpr_Nud(ByRef $lexer, ByRef $aSt, ByRef $tk, $tkPrev)
                 $tkPrev[$AL_TOKI_TYPE] = $AL_TOK_MACRO
             $tkOBrack = $tk
 
-            If __AuParse_Accept($lexer, $tk, $AL_TOK_OPAR) Then
+            If $tk[$AL_TOKI_TYPE] = $AL_TOK_OPAR Then
+                $err = __AuParse_GetTok($lexer, $tk)
+                If @error Then Return SetError(@error, 0, $err)
+
                 $iFunc = __AuAST_AddBranchTok($aSt, $tkPrev)
                 $iStRet = __AuParse_ParseFuncCall($lexer, $aSt, $tk, $iFunc)
-            ElseIf __AuParse_Accept($lexer, $tk, $AL_TOK_OBRACK) Then
+            ElseIf $tk[$AL_TOKI_TYPE] = $AL_TOK_OBRACK Then
+                $err = __AuParse_GetTok($lexer, $tk)
+                If @error Then Return SetError(@error, 0, $err)
+
                 $i = __AuAST_AddBranchTok($aSt, $tkPrev)
                 $iStRet = __AuParse_ParseArrayLookup($lexer, $aSt, $tk, $i, $tkOBrack)
+                If @error Then Return SetError(@error, 0, $iStRet)
             Else
                 $iStRet = __AuAST_AddBranchTok($aSt, $tkPrev)
             EndIf
@@ -127,41 +131,49 @@ Func __AuParse_ParseExpr_Nud(ByRef $lexer, ByRef $aSt, ByRef $tk, $tkPrev)
                     $tkPrev)
 
             $i = __AuParse_ParseExpr($lexer, $aSt, $tk, 0)
-            If @error Then
-                ; Error: Error parsing expression
-                Return SetError(@error, 0, $i)
+            If @error Then Return SetError(@error, 0, $i)
+
+            If $tk[$AL_TOKI_TYPE] <> $AL_TOK_EPAR Then
+                ; Error: Expected closing parentheses.
+                Return SetError(@ScriptLineNumber, 0, _
+                        _Error_Create("Expected closing parenthesis after expression group.", _
+                            $aSt, $iStRet, $lexer, $tk))
             EndIf
 
-            If Not __AuParse_Accept($lexer, $tk, $AL_TOK_EPAR) Then
-                ; Error: Expected closing parentheses.
-                Return SetError(@ScriptLineNumber, 0, 0)
-            EndIf
+            $err = __AuParse_GetTok($lexer, $tk)
+            If @error Then Return SetError(@error, 0, $err)
 
             $aSt[$iStRet][$AP_STI_LEFT] = $i
 
-        Case ($tkPrev[$AL_TOKI_TYPE] = $AL_TOK_KEYWORD And $tkPrev[1] = "Not") Or _
-                ($tkPrev[$AL_TOKI_TYPE] = $AL_TOK_OP And $tkPrev[1] = "+") Or _
-                ($tkPrev[$AL_TOKI_TYPE] = $AL_TOK_OP And $tkPrev[1] = "-")
+        Case ($tkPrev[$AL_TOKI_TYPE] = $AL_TOK_KEYWORD And $tkPrev[$AL_TOKI_DATA] = "Not") Or _
+                ($tkPrev[$AL_TOKI_TYPE] = $AL_TOK_OP And $tkPrev[$AL_TOKI_DATA] = "+") Or _
+                ($tkPrev[$AL_TOKI_TYPE] = $AL_TOK_OP And $tkPrev[$AL_TOKI_DATA] = "-")
             $iStRet = __AuAST_AddBranch($aSt, $AP_BR_OP, $tkPrev[$AL_TOKI_DATA], -1, 0, _
                     $tkPrev)
 
             $i = __AuParse_ParseExpr($lexer, $aSt, $tk, $AP_OPPREC_NOT)
-            If @error Then
-                ; Error: Error parsing expression
-                Return SetError(@error, 0, $i)
-            EndIf
+            If @error Then Return SetError(@error, 0, $i)
 
             $aSt[$iStRet][$AP_STI_LEFT] = $i
 
-        Case $tkPrev[$AL_TOKI_TYPE] = $AL_TOK_FUNC Or $tkPrev[$AL_TOKI_TYPE] = $AL_TOK_WORD
-            $tkOBrack = $tk
+        Case ($tkPrev[$AL_TOKI_TYPE] = $AL_TOK_FUNC) Or ($tkPrev[$AL_TOKI_TYPE] = $AL_TOK_WORD)
+            $tkOPar = $tk
 
-            If __AuParse_Accept($lexer, $tk, $AL_TOK_OPAR) Then
+            If $tk[$AL_TOKI_TYPE] = $AL_TOK_OPAR Then
+                $err = __AuParse_GetTok($lexer, $tk)
+                If @error Then Return SetError(@error, 0, $err)
+
                 $iFunc = __AuAST_AddBranchTok($aSt, $tkPrev)
+
                 $iStRet = __AuParse_ParseFuncCall($lexer, $aSt, $tk, $iFunc)
-            ElseIf __AuParse_Accept($lexer, $tk, $AL_TOK_OBRACK) Then
+                If @error Then Return SetError(@error, 0, $iStRet)
+            ElseIf $tk[$AL_TOKI_TYPE] = $AL_TOK_OBRACK Then
+                __AuParse_GetTok($lexer, $tk)
+                If @error then Return SetError(@error, 0, $err)
+
                 $i = __AuAST_AddBranchTok($aSt, $tkPrev)
                 $iStRet = __AuParse_ParseArrayLookup($lexer, $aSt, $tk, $i, $tkOBrack)
+                If @error then Return SetError(@error, 0, $iStRet)
             Else
                 $iStRet = __AuAST_AddBranchTok($aSt, $tkPrev)
             EndIf
@@ -172,7 +184,7 @@ Func __AuParse_ParseExpr_Nud(ByRef $lexer, ByRef $aSt, ByRef $tk, $tkPrev)
             Return SetError(@ScriptLineNumber, 0, 0)
     EndSelect
 
-    Return SetError(@error, 0, $iStRet)
+    Return $iStRet
 EndFunc   ;==>__AuParse_ParseExpr_Nud
 
 Func __AuParse_ParseExpr_Led(ByRef $lexer, ByRef $aSt, ByRef $tk, $tkPrev, $left)
@@ -180,7 +192,9 @@ Func __AuParse_ParseExpr_Led(ByRef $lexer, ByRef $aSt, ByRef $tk, $tkPrev, $left
 
     If $tkPrev[$AL_TOKI_TYPE] <> $AL_TOK_OP Then
         ; Error: Expected operator.
-        Return SetError(@ScriptLineNumber, 0, 0)
+        Return SetError(@ScriptLineNumber, 0, _
+                _Error_Create("Expected an infix operator.", _
+                    $aSt, $iStRet, $lexer, $tk))
     EndIf
 
     Switch $tkPrev[$AL_TOKI_DATA]
@@ -188,15 +202,14 @@ Func __AuParse_ParseExpr_Led(ByRef $lexer, ByRef $aSt, ByRef $tk, $tkPrev, $left
             $iStRet = __AuAST_AddBranchTok($aSt, $tkPrev, $left, -1)
 
             $right = __AuParse_ParseExpr($lexer, $aSt, $tk, __AuParse_ParseExpr_Lbp($tkPrev))
-            If @error Then
-                ; Error: Error parsing expression
-                Return SetError(@error, 0, $right)
-            EndIf
+            If @error Then Return SetError(@error, 0, $right)
 
             $aSt[$iStRet][$AP_STI_RIGHT] = $right
         Case Else
             ; Error: Operator not valid here
-            Return SetError(@ScriptLineNumber, 0, 0)
+            Return SetError(@ScriptLineNumber, 0, _
+                    _Error_Create("Operator not valid infix.", _
+                        $aSt, $iStRet, $lexer, $tk))
     EndSwitch
 
     Return $iStRet
@@ -228,307 +241,302 @@ Func __AuParse_ParseExpr_Lbp($tk)
 EndFunc   ;==>__AuParse_ParseExpr_Lbp
 
 
-Func __AuParse_ParseLine(ByRef $lexer, ByRef $aSt, ByRef $tk, $fTopLevel = False)
+Func __AuParse_KwordToVarF($sKword)
+    Local $i = 0
+    Switch $sKword
+        Case "Local"
+            $i = $AP_VARF_LOCAL
+        Case "Global"
+            $i = $AP_VARF_Global
+        Case "Dim"
+            $i = $AP_VARF_DIM
+        Case "Const"
+            $i = $AP_VARF_CONST
+        Case "Static"
+            $i = $AP_VARF_CONST
+        Case "ByRef"
+            $i = $AP_VARF_BYREF
+    EndSwitch
+
+    Return $i
+EndFunc
+
+
+Func __AuParse_ParseLine(ByRef $lexer, ByRef $aSt, ByRef $tk, $fTopLevel = False, $fNoEol = False)
     Local $iStRet, $i, $j
     Local $abs, $line, $col
-    Local $tkFirst, $s
+    Local $tkFirst, $s, $err
 
     $tkFirst = $tk
 
-    ; Ignore empty lines?
-    If __AuParse_Accept($lexer, $tk, $AL_TOK_EOL) Then
+    ; Ignore empty lines
+    If $tk[$AL_TOKI_TYPE] = $AL_TOK_EOL Then
+        $err = __AuParse_GetTok($lexer, $tk)
+        If @Error Then Return SetError(@error, 0, $err)
+
         Return 0 ; __AuAST_AddBranchTok($aSt, $tkFirst)
     EndIf
 
-    Select
-        Case __AuParse_Accept($lexer, $tk, $AL_TOK_INCLUDE)
+    $err = __AuParse_GetTok($lexer, $tk)
+    If @error Then Return SetError(@error, 0, $err)
+
+    Switch $tkFirst[$AL_TOKI_TYPE]
+        Case $AL_TOK_INCLUDE
             Return _Ault_ParseChild($lexer, $aSt, $tkFirst)
-        Case $fTopLevel And __AuParse_Accept($lexer, $tk, $AL_TOK_EOF)
-            Return -1
-        Case __AuParse_Accept($lexer, $tk, $AL_TOK_PREPROC)
-            $iStRet = __AuAST_AddBranchTok($aSt, $tkFirst)
 
-        Case $fTopLevel And __AuParse_Accept($lexer, $tk, $AL_TOK_KEYWORD, "Func")
-            $iStRet = __AuParse_ParseFuncDecl($lexer, $aSt, $tk)
+        Case $AL_TOK_PREPROC
+            Return __AuAST_AddBranchTok($aSt, $tkFirst)
 
-        Case Not $fTopLevel And __AuParse_Accept($lexer, $tk, $AL_TOK_KEYWORD, "ContinueCase")
-            $iStRet = __AuAST_AddBranch($aSt, $AP_BR_STMT, $tkFirst[$AL_TOKI_DATA], "", "", _
-                    $tkFirst[$AL_TOKI_ABS], $tkFirst[$AL_TOKI_LINE], $tkFirst[$AL_TOKI_COL])
-
-            If Not __AuParse_Accept($lexer, $tk, $AL_TOK_EOL) Then
-                ; Expecting new line after continuecase
-                Return SetError(@ScriptLineNumber, 0, 0)
-            EndIf
-
-        Case Not $fTopLevel And (__AuParse_Accept($lexer, $tk, $AL_TOK_KEYWORD, "Return") Or _
-                __AuParse_Accept($lexer, $tk, $AL_TOK_KEYWORD, "ContinueLoop") Or _
-                __AuParse_Accept($lexer, $tk, $AL_TOK_KEYWORD, "ExitLoop") Or _
-                __AuParse_Accept($lexer, $tk, $AL_TOK_KEYWORD, "Exit"))
-            $iStRet = __AuAST_AddBranch($aSt, $AP_BR_STMT, $tkFirst[$AL_TOKI_DATA], "", "", _
-                    $tkFirst[$AL_TOKI_ABS], $tkFirst[$AL_TOKI_LINE], $tkFirst[$AL_TOKI_COL])
-
-            If Not __AuParse_Accept($lexer, $tk, $AL_TOK_EOL) Then
-                $i = __AuParse_ParseExpr($lexer, $aSt, $tk)
-                If @error Then
-                    ; Error parsing expression
-                    Return SetError(@error, 0, $i)
-                EndIf
-
-                If Not __AuParse_Accept($lexer, $tk, $AL_TOK_EOL) Then
-                    ; Expecting new line after return statement
-                    Return SetError(@ScriptLineNumber, 0, 0)
-                EndIf
-
-                $aSt[$iStRet][$AP_STI_LEFT] = $i
-            EndIf
-
-        Case __AuParse_Accept($lexer, $tk, $AL_TOK_KEYWORD, "If")
-            $iStRet = __AuParse_ParseIf($lexer, $aSt, $tk, $tkFirst)
-
-        Case __AuParse_Accept($lexer, $tk, $AL_TOK_KEYWORD, "Do")
-            $iStRet = __AuParse_ParseDo($lexer, $aSt, $tk, $tkFirst)
-
-        Case __AuParse_Accept($lexer, $tk, $AL_TOK_KEYWORD, "While")
-            $iStRet = __AuParse_ParseWhile($lexer, $aSt, $tk, $tkFirst)
-
-        Case __AuParse_Accept($lexer, $tk, $AL_TOK_KEYWORD, "For")
-            $iStRet = __AuParse_ParseFor($lexer, $aSt, $tk, $tkFirst)
-
-        Case __AuParse_Accept($lexer, $tk, $AL_TOK_KEYWORD, "Select")
-            $iStRet = __AuParse_ParseSelect($lexer, $aSt, $tk, $tkFirst)
-
-        Case __AuParse_Accept($lexer, $tk, $AL_TOK_KEYWORD, "Switch")
-            $iStRet = __AuParse_ParseSwitch($lexer, $aSt, $tk, $tkFirst)
-
-        Case __AuParse_Accept($lexer, $tk, $AL_TOK_KEYWORD, "Local")
-            $i = $AP_VARF_LOCAL
-
-            If __AuParse_Accept($lexer, $tk, $AL_TOK_KEYWORD, "Enum") Then
-                $iStRet = __AuParse_ParseEnumDecls($lexer, $aSt, $tk, $i, $tkFirst)
-            Else
-                If __AuParse_Accept($lexer, $tk, $AL_TOK_KEYWORD, "Const") Then
-                    If __AuParse_Accept($lexer, $tk, $AL_TOK_KEYWORD, "Static") Then
-                        $i = BitOR($i, $AP_VARF_CONST, $AP_VARF_STATIC)
-                    Else
-                        $i = BitOR($i, $AP_VARF_CONST)
-                    EndIf
-                ElseIf __AuParse_Accept($lexer, $tk, $AL_TOK_KEYWORD, "Static") Then
-                    If __AuParse_Accept($lexer, $tk, $AL_TOK_KEYWORD, "Const") Then
-                        $i = BitOR($i, $AP_VARF_STATIC, $AP_VARF_CONST)
-                    Else
-                        $i = BitOR($i, $AP_VARF_STATIC)
-                    EndIf
-                EndIf
-
-                $iStRet = __AuParse_ParseDecls($lexer, $aSt, $tk, $i)
-            EndIf
-
-        Case __AuParse_Accept($lexer, $tk, $AL_TOK_KEYWORD, "Global")
-            $i = $AP_VARF_GLOBAL
-
-            If __AuParse_Accept($lexer, $tk, $AL_TOK_KEYWORD, "Enum") Then
-                $iStRet = __AuParse_ParseEnumDecls($lexer, $aSt, $tk, $i, $tkFirst)
-            Else
-                If __AuParse_Accept($lexer, $tk, $AL_TOK_KEYWORD, "Const") Then
-                    $i = BitOR($i, $AP_VARF_CONST)
-                EndIf
-
-                $iStRet = __AuParse_ParseDecls($lexer, $aSt, $tk, $i)
-            EndIf
-
-        Case __AuParse_Accept($lexer, $tk, $AL_TOK_KEYWORD, "Dim")
-            $i = $AP_VARF_DIM
-
-            If __AuParse_Accept($lexer, $tk, $AL_TOK_KEYWORD, "Enum") Then
-                $i = BitOR($i, $AP_VARF_CONST)
-                $iStRet = __AuParse_ParseEnumDecls($lexer, $aSt, $tk, $i, $tkFirst)
-            Else
-                If __AuParse_Accept($lexer, $tk, $AL_TOK_KEYWORD, "Const") Then
-                    $i = BitOR($i, $AP_VARF_CONST)
-                EndIf
-
-                $iStRet = __AuParse_ParseDecls($lexer, $aSt, $tk, $i)
-            EndIf
-
-        Case __AuParse_Accept($lexer, $tk, $AL_TOK_KEYWORD, "Enum")
-            $i = BitOR($AP_VARF_DIM, $AP_VARF_CONST)
-            $iStRet = __AuParse_ParseEnumDecls($lexer, $aSt, $tk, $i)
-
-        Case __AuParse_Accept($lexer, $tk, $AL_TOK_KEYWORD, "Const")
-            $iStRet = __AuParse_ParseDecls($lexer, $aSt, $tk, $AP_VARF_DIM)
-
-        Case __AuParse_Accept($lexer, $tk, $AL_TOK_KEYWORD, "Static")
-            $i = $AP_VARF_STATIC
-
-            If __AuParse_Accept($lexer, $tk, $AL_TOK_KEYWORD, "Global") Then
-                $i = BitOR($i, $AP_VARF_GLOBAL)
-            ElseIf __AuParse_Accept($lexer, $tk, $AL_TOK_KEYWORD, "Local") Then
-                $i = BitOR($i, $AP_VARF_LOCAL)
-            EndIf
-
-            $iStRet = __AuParse_ParseDecls($lexer, $aSt, $tk, $i)
-
-        Case __AuParse_Accept($lexer, $tk, $AL_TOK_KEYWORD, "ReDim")
-            $iStRet = __AuAST_AddBranch($aSt, $AP_BR_REDIM, "", -1, "")
-
-            $i = __AuParse_ParseExpr($lexer, $aSt, $tk)
-            If @error Then
-                ; Error: Error parsing array lookup
-                Return SetError(@error, 0, $i)
-            EndIf
-
-            If $aSt[$i][$AP_STI_BRTYPE] <> $AP_BR_LOOKUP Then
-                ; Expecting array redim statement
-                Return SetError(@ScriptLineNumber, 0, 0)
-            EndIf
-
-            $aSt[$iStRet][$AP_STI_LEFT] = $i
-
-        Case __AuParse_Accept($lexer, $tk, $AL_TOK_VARIABLE, Default)
+        Case $AL_TOK_VARIABLE
             $op = $tk
+            $iLHS = __AuAST_AddBranchTok($aSt, $tkFirst)
 
-            If __AuParse_Accept($lexer, $tk, $AL_TOK_OBRACK) Then ; Array Assignment
-                $iStRet = __AuAST_AddBranch($aSt, $AP_BR_ASSIGN, "???", -1, -1, $op)
+            ; LHS might be an array
+            If $tk[$AL_TOKI_TYPE] = $AL_TOK_OBRACK Then ; Array
+                $err = __AuParse_GetTok($lexer, $tk)
+                If @error Then Return SetError(@error, 0, $err)
 
-                $i = __AuAST_AddBranchTok($aSt, $tkFirst)
-
-                $i = __AuParse_ParseArrayLookup($lexer, $aSt, $tk, $i, $op)
-                If @error Then
-                    ; Error: Error parsing array lookup
-                    Return SetError(@error, 0, $i)
-                EndIf
-
-                $aSt[$iStRet][$AP_STI_LEFT] = $i
-                $aSt[$iStRet][$AP_STI_VALUE] = $tk[$AL_TOKI_DATA]
-
-                If Not __AuParse_Accept($lexer, $tk, $AL_TOK_ASSIGN) _
-                        And Not __AuParse_Accept($lexer, $tk, $AL_TOK_OP, "=") Then
-                    ; Error: Expected assignment operator
-                    Return SetError(@ScriptLineNumber, 0, 0)
-                EndIf
-
-                $j = __AuParse_ParseExpr($lexer, $aSt, $tk)
-                If @error Then
-                    ; Error: Error parsing expression
-                    Return SetError(@error, 0, $j)
-                EndIf
-
-                $aSt[$iStRet][$AP_STI_RIGHT] = $j
-
-                If Not __AuParse_Accept($lexer, $tk, $AL_TOK_EOL) _
-                        And Not __AuParse_Accept($lexer, $tk, $AL_TOK_EOF) Then
-                    ; Error: Extra characters on line
-                    Return SetError(@ScriptLineNumber, 0, 0)
-                EndIf
-            ElseIf __AuParse_Accept($lexer, $tk, $AL_TOK_OPAR) Then ; Function call
-                $iFunc = __AuAST_AddBranchTok($aSt, $tkFirst)
-
-                $iStRet = __AuParse_ParseFuncCall($lexer, $aSt, $tk, $iFunc)
-                If @error Then
-                    ; Error parsing func call
-                    Return SetError(@error, 0, $iStRet)
-                EndIf
-
-                If Not __AuParse_Accept($lexer, $tk, $AL_TOK_EOL) _
-                        And Not __AuParse_Accept($lexer, $tk, $AL_TOK_EOF) Then
-                    ; Error: Extra characters on line
-                    Return SetError(@ScriptLineNumber, 0, 0)
-                EndIf
-            ElseIf __AuParse_Accept($lexer, $tk, $AL_TOK_ASSIGN) _
-                    Or __AuParse_Accept($lexer, $tk, $AL_TOK_OP, "=") Then ; Assignment
-
-                ; Fix '=' seen as operator
-                $op[$AL_TOKI_TYPE] = $AL_TOK_ASSIGN
-
-                $iStRet = __AuAST_AddBranchTok($aSt, $op, -1, -1)
-                $aSt[$iStRet][$AP_STI_LEFT] = __AuAST_AddBranchTok($aSt, $tkFirst)
-
-                $j = __AuParse_ParseExpr($lexer, $aSt, $tk)
-                If @error Then
-                    ; Error: Error parsing expression
-                    Return SetError(@error, 0, $j)
-                EndIf
-
-                $aSt[$iStRet][$AP_STI_RIGHT] = $j
-
-                If Not __AuParse_Accept($lexer, $tk, $AL_TOK_EOL) Then
-                    ; Error: Extra characters on line
-                    Return SetError(@ScriptLineNumber, 0, 0)
-                EndIf
-
-            Else
-                ; Error: Expected statement
-                Return SetError(@ScriptLineNumber, 0, 0)
+                $iLHS = __AuParse_ParseArrayLookup($lexer, $aSt, $tk, $iLHS, $op)
+                If @error Then Return SetError(@error, 0, $iLHS)
             EndIf
 
-            ; Object lookup? Todo.
-        Case __AuParse_Accept($lexer, $tk, $AL_TOK_WORD)
-            If __AuParse_Accept($lexer, $tk, $AL_TOK_OBRACK) Then ; Array Lookup
-                ; Todo
-            ElseIf __AuParse_Accept($lexer, $tk, $AL_TOK_OPAR) Then ; Function call
-                $iFunc = __AuAST_AddBranchTok($aSt, $tkFirst)
+            ; Fix for = dual usage
+            If $tk[$AL_TOKI_TYPE] = $AL_TOK_OP And $tk[$AL_TOKI_DATA] = "=" Then
+                ; = operator is assignment
+                $tk[$AL_TOKI_TYPE] = $AL_TOK_ASSIGN
+            EndIf
 
-                $iStRet = __AuParse_ParseFuncCall($lexer, $aSt, $tk, $iFunc)
-                If @error Then
-                    ; Error: Error parsing function call
-                    Return SetError(@error, 0, $iStRet)
-                EndIf
+            ; Assignment or function call valid.
+            If $tk[$AL_TOKI_TYPE] = $AL_TOK_ASSIGN Then
+                $iStRet = __AuAST_AddBranchTok($aSt, $op, $iLHS, -1)
 
-                If Not __AuParse_Accept($lexer, $tk, $AL_TOK_EOL) _
-                        And Not __AuParse_Accept($lexer, $tk, $AL_TOK_EOF) Then
-                    ; Error: Extra characters on line
-                    Return SetError(@ScriptLineNumber, 0, 0)
-                EndIf
-            ElseIf __AuParse_Accept($lexer, $tk, $AL_TOK_ASSIGN) Then ; Assignment
-                $iStRet = __AuAST_AddBranch($aSt, $AP_BR_ASSIGN, $s, -1, -1)
-
-                $aSt[$iStRet][$AP_STI_LEFT] = __AuAST_AddBranchTok($aSt, $tkFirstData)
+                $err = __AuParse_GetTok($lexer, $tk)
+                If @error Then Return SetError(@error, 0, $err)
 
                 $j = __AuParse_ParseExpr($lexer, $aSt, $tk)
-                If @error Then
-                    ; Error: Error parsing expression
-                    Return SetError(@error, 0, $j)
-                EndIf
+                If @error Then Return SetError(@error, 0, $j)
 
                 $aSt[$iStRet][$AP_STI_RIGHT] = $j
+            ElseIf $tk[$AL_TOKI_TYPE] = $AL_TOK_OPAR Then
+                $err = __AuParse_GetTok($lexer, $tk)
+                If @error then Return SetError(@error, 0, $err)
 
-                If Not __AuParse_Accept($lexer, $tk, $AL_TOK_EOL) Then
-                    ; Error: Extra characters on line
-                    Return SetError(@ScriptLineNumber, 0, 0)
-                EndIf
-
+                $iStRet = __AuParse_ParseFuncCall($lexer, $aSt, $tk, $iLHS)
+                If @error Then Return SetError(@error, 0, $iStRet)
             Else
-                ; Error: Expected statement
-                Return SetError(@ScriptLineNumber, 0, 0)
+                ; Not a function call or assignment
+                Return SetError(@ScriptLineNumber, 0, _
+                        _Error_Create("Expected function call or assignment.", _
+                            $aSt, $iStRet, $lexer, $tk))
             EndIf
-        Case __AuParse_Accept($lexer, $tk, $AL_TOK_FUNC)
-            If __AuParse_Accept($lexer, $tk, $AL_TOK_OPAR) Then ; Function call
+
+            If $tk[$AL_TOKI_TYPE] <> $AL_TOK_EOL Then
+                ; Error: Extra characters on line
+                Return SetError(@ScriptLineNumber, 0, _
+                        _Error_Create("Extra characters on line.", _
+                            $aSt, $iStRet, $lexer, $tk))
+            EndIf
+
+            Return $iStRet
+
+        Case $AL_TOK_WORD, $AL_TOK_FUNC
+            If $tk[$AL_TOKI_TYPE] = $AL_TOK_OPAR Then ; Function call
+                $err = __AuParse_GetTok($lexer, $tk)
+                If @error Then SetError(@error, 0, $err)
+
                 $iFunc = __AuAST_AddBranchTok($aSt, $tkFirst)
 
                 $iStRet = __AuParse_ParseFuncCall($lexer, $aSt, $tk, $iFunc)
-                If @error Then
-                    ; Error: Error parsing function call
-                    Return SetError(@error, 0, $iStRet)
-                EndIf
+                If @error Then Return SetError(@error, 0, $iStRet)
 
-                If Not __AuParse_Accept($lexer, $tk, $AL_TOK_EOL) _
-                        And Not __AuParse_Accept($lexer, $tk, $AL_TOK_EOF) Then
+                If $tk[$AL_TOKI_TYPE] <> $AL_TOK_EOL Then
                     ; Error: Extra characters on line
-                    Return SetError(@ScriptLineNumber, 0, 0)
+                    Return SetError(@ScriptLineNumber, 0, _
+                            _Error_Create("Extra characters on line.", _
+                                $aSt, $iStRet, $lexer, $tk))
                 EndIf
             Else
                 ; Error: Expected function call
-                Return SetError(@ScriptLineNumber, 0, 0)
+                Return SetError(@ScriptLineNumber, 0, _
+                        _Error_Create("Expected a function call.", _
+                            $aSt, $iStRet, $lexer, $tk))
             EndIf
+
+        Case $AL_TOK_KEYWORD
+            Switch $tkFirst[$AL_TOKI_DATA]
+                Case "Func"
+                    If Not $fTopLevel Then
+                        ; Function definition not valid except at file level.
+                        Return SetError(@ScriptLineNumber, 0, _
+                                _Error_Create("Function definition not valid except at file level", _
+                                    $aSt, $iStRet, $lexer, $tk))
+                    EndIf
+
+                    $iStRet = __AuParse_ParseFuncDecl($lexer, $aSt, $tk)
+
+                Case "ContinueCase"
+                    $iStRet = __AuAST_AddBranchTok($aSt, $tkFirst)
+                    $aSt[$iStRet][$AP_STI_TYPE] = $AP_BR_STMT
+
+                Case "Return", "ExitLoop", "ContinueLoop", "Exit"
+                    $iStRet = __AuAST_AddBranchTok($aSt, $tkFirst)
+                    $aSt[$iStRet][$AP_STI_BRTYPE] = $AP_BR_STMT
+
+                    ; Statements can take an expression
+                    If $tk[$AL_TOKI_TYPE] <> $AL_TOK_EOL Then
+                        $i = __AuParse_ParseExpr($lexer, $aSt, $tk)
+                        If @error Then Return SetError(@error, 0, $i)
+
+                        $aSt[$iStRet][$AP_STI_LEFT] = $i
+                    EndIf
+
+                Case "Redim"
+                    $iStRet = __AuAST_AddBranchTok($aSt, $tkFirst)
+                    $aSt[$iStRet][$AP_STI_TYPE] = $AP_BR_STMT
+
+                    ; Statements can take an expression
+                    If $tk[$AL_TOKI_TYPE] <> $AL_TOK_EOL Then
+                        $i = __AuParse_ParseExpr($lexer, $aSt, $tk)
+                        If @error Then Return SetError(@error, 0, $i)
+
+                        $aSt[$iStRet][$AP_STI_LEFT] = $i
+
+                        If $aSt[$i][$AP_STI_BRTYPE] <> $AP_BR_LOOKUP Then
+                            ; Expecting array redim statement
+                            Return SetError(@ScriptLineNumber, 0, _
+                                    _Error_Create("ReDim statement requires array expression", _
+                                        $aSt, $iStRet, $lexer, $tk))
+                        EndIf
+                    EndIf
+
+                Case "If"
+                    $iStRet = __AuParse_ParseIf($lexer, $aSt, $tk, $tkFirst)
+                    If @error Then Return SetError(@error, 0, $iStRet)
+
+                Case "Do"
+                    $iStRet = __AuParse_ParseDo($lexer, $aSt, $tk, $tkFirst)
+                    If @error Then Return SetError(@error, 0, $iStRet)
+
+                Case "While"
+                    $iStRet = __AuParse_ParseWhile($lexer, $aSt, $tk, $tkFirst)
+                    If @error Then Return SetError(@error, 0, $iStRet)
+
+                Case "Select"
+                    $iStRet = __AuParse_ParseSelect($lexer, $aSt, $tk, $tkFirst)
+                    If @error Then Return SetError(@error, 0, $iStRet)
+
+                Case "Switch"
+                    $iStRet = __AuParse_ParseSwitch($lexer, $aSt, $tk, $tkFirst)
+                    If @error Then Return SetError(@error, 0, $iStRet)
+
+                Case "Local", "Global", "Dim", "Enum", "Static", "Const"
+                    ; Rules are:
+                    ; Local, Global, Dim can only appear first
+                    ; Same keyword can't appear twice
+                    ; Enum must come last.
+
+                    $iStRet = __AuAST_AddBranch($aSt, $AP_BR_DECL, _
+                            __AuParse_KwordToVarF($tkFirst[$AL_TOKI_DATA]), "", "", $tkFirst)
+
+                    While $tk[$AL_TOKI_TYPE] = $AL_TOK_KEYWORD
+                        Select
+                            Case BitAND($aSt[$iStRet][$AP_STI_VALUE], $AP_VARF_ENUM)
+                                ; Wrong keyword, enum must come last
+                                Return SetError(@ScriptLineNumber, 0, _
+                                        _Error_Create("Keyword not valid here", _
+                                            $aSt, $iStRet, $lexer, $tk))
+
+                            Case Not BitAND($aSt[$iStRet][$AP_STI_VALUE], BitNOT(BitOR($AP_VARF_LOCAL, $AP_VARF_GLOBAL, $AP_VARF_DIM))) _
+                                    And BitAND($aSt[$iStRet][$AP_STI_VALUE], BitOR($AP_VARF_LOCAL, $AP_VARF_GLOBAL, $AP_VARF_DIM))
+                                ; Local, Global or Dim
+
+                                If $tk[$AL_TOKI_DATA] = "Static" Then
+                                    $aSt[$iStRet][$AP_STI_VALUE] = BitOR($aSt[$iStRet][$AP_STI_VALUE], $AP_VARF_STATIC)
+                                ElseIf $tk[$AL_TOKI_DATA] = "Const" Then
+                                    $aSt[$iStRet][$AP_STI_VALUE] = BitOR($aSt[$iStRet][$AP_STI_VALUE], $AP_VARF_CONST)
+                                ElseIf $tk[$AL_TOKI_DATA] = "Enum" Then
+                                    $aSt[$iStRet][$AP_STI_VALUE] = BitOR($aSt[$iStRet][$AP_STI_VALUE], $AP_VARF_ENUM)
+                                Else
+                                    ; Wrong keyword
+                                    Return SetError(@ScriptLineNumber, 0, _
+                                            _Error_Create("Keyword not valid here", _
+                                                $aSt, $iStRet, $lexer, $tk))
+                                EndIf
+
+                            Case BitAND($aSt[$iStRet][$AP_STI_VALUE], BitOR($AP_VARF_STATIC, $AP_VARF_CONST))
+                                If $tk[$AL_TOKI_DATA] = "Enum" Then
+                                    $aSt[$iStRet][$AP_STI_VALUE] = BitOR($aSt[$iStRet][$AP_STI_VALUE], $AP_VARF_ENUM)
+                                ElseIf $tk[$AL_TOKI_DATA] = "Static" Then
+                                    If BitAND($aSt[$iStRet][$AP_STI_VALUE], $AP_VARF_STATIC) then
+                                        ; Static keyword duplicated.
+                                        Return SetError(@ScriptLineNumber, 0, _
+                                                _Error_Create("Static keyword duplicated", _
+                                                    $aSt, $iStRet, $lexer, $tk))
+                                    Else
+                                        $aSt[$iStRet][$AP_STI_VALUE] = BitOR($aSt[$iStRet][$AP_STI_VALUE], $AP_VARF_STATIC)
+                                    EndIf
+                                ElseIf $tk[$AL_TOKI_DATA] = "Const" Then
+                                    If BitAND($aSt[$iStRet][$AP_STI_VALUE], $AP_VARF_CONST) then
+                                        ; Static keyword duplicated.
+                                        Return SetError(@ScriptLineNumber, 0, _
+                                                _Error_Create("Const keyword duplicated", _
+                                                    $aSt, $iStRet, $lexer, $tk))
+                                    Else
+                                        $aSt[$iStRet][$AP_STI_VALUE] = BitOR($aSt[$iStRet][$AP_STI_VALUE], $AP_VARF_CONST)
+                                    EndIf
+                                Else
+                                    ; Wrong keyword
+                                    Return SetError(@ScriptLineNumber, 0, _
+                                            _Error_Create("Keyword not valid here", _
+                                                $aSt, $iStRet, $lexer, $tk))
+                                EndIf
+
+                            Case Else
+                                ; Parser logic error
+                                Return SetError(@ScriptLineNumber, 0, _
+                                        _Error_Create("Parser logic error", _
+                                            $aSt, $iStRet, $lexer, $tk))
+                        EndSelect
+
+                        $err = __AuParse_GetTok($lexer, $tk)
+                        If @error Then Return SetError(@error, 0, $err)
+                    WEnd
+
+                    ; Parse variable list
+                    If BitAND($i, $AP_VARF_ENUM) Then
+                        $aSt[$iStRet][$AP_STI_TYPE] = $AP_BR_ENUMDEF ; Correct the type
+                        $iStRet = __AuParse_ParseEnumDecls($lexer, $aSt, $tk, $i, $iStRet)
+                    Else
+                        $iStRet = __AuParse_ParseDecls($lexer, $aSt, $tk, $iStRet)
+                    EndIf
+                    If @error Then Return SEtError(@error, 0, $iStRet)
+
+                Case Else
+                    Return SetError(@ScriptLineNumber, 0, _
+                            _Error_Create("Keyword '" & $tk[$AL_TOKI_DATA] & "' not valid at the start of a line.", _
+                                $aSt, $iStRet, $lexer, $tk))
+            EndSwitch
+
         Case Else
-            _ArrayDisplay($tk, @ScriptLineNumber & ": Unexpected Token.")
-            ; Error: Unexpected token.
+            ; Unexpected Token
             Return SetError(@ScriptLineNumber, 0, _
                     _Error_Create("Unexpected token starting a line '" & __AuTok_TypeToStr($tk[$AL_TOKI_TYPE]) & "'.", _
                         $aSt, $iStRet, $lexer, $tk))
-    EndSelect
+    EndSwitch
 
-    Return SetError(@error, 0, $iStRet)
+    If Not $fNoEol Then
+        If $tk[$AL_TOKI_TYPE] <> $AL_TOK_EOL Then
+            ; Extra characters on line
+            Return SetError(@ScriptLineNumber, 0, _
+                    _Error_Create("Extra symbols on the line", _
+                        $aSt, $iStRet, $lexer, $tk))
+        EndIf
+
+        $err = __AuParse_GetTok($lexer, $tk)
+        If @error Then Return SetError(@error, 0, $err)
+    EndIf
+
+    Return $iStRet
 EndFunc   ;==>__AuParse_ParseLine
 
 Func __AuParse_ParseIf(ByRef $lexer, ByRef $aSt, ByRef $tk, $tkIf)
@@ -613,18 +621,9 @@ Func __AuParse_ParseIf(ByRef $lexer, ByRef $aSt, ByRef $tk, $tkIf)
         WEnd
 
         $aSt[$iElseif][$AP_STI_RIGHT] = StringTrimRight($aSt[$iElseif][$AP_STI_RIGHT], 1)
-
-        If Not __AuParse_Accept($lexer, $tk, $AL_TOK_EOL) _
-                And Not __AuParse_Accept($lexer, $tk, $AL_TOK_EOF) Then
-            ; Error: Extra characters on line
-            Return SetError(@ScriptLineNumber, 0, 0)
-        EndIf
     Else
-        Local $sBody = __AuParse_ParseLine($lexer, $aSt, $tk)
-        If @error Then
-            ; Error: Error parsing line
-            Return SetError(@error, 0, $sBody)
-        EndIf
+        Local $sBody = __AuParse_ParseLine($lexer, $aSt, $tk, False, True)
+        If @error Then Return SetError(@error, 0, $sBody)
 
         $aSt[$iStRet][$AP_STI_RIGHT] = $sBody
     EndIf
@@ -664,18 +663,10 @@ Func __AuParse_ParseWhile(ByRef $lexer, ByRef $aSt, ByRef $tk, $tkWhile)
     WEnd
     $aSt[$iStRet][$AP_STI_RIGHT] = StringTrimRight($aSt[$iStRet][$AP_STI_RIGHT], 1)
 
-    If Not __AuParse_Accept($lexer, $tk, $AL_TOK_EOL) _
-            And Not __AuParse_Accept($lexer, $tk, $AL_TOK_EOF) Then
-        ; Error: Extra characters on line
-        Return SetError(@ScriptLineNumber, 0, 0)
-    EndIf
-
     Return $iStRet
 EndFunc   ;==>__AuParse_ParseWhile
 
 Func __AuParse_ParseFor(ByRef $lexer, ByRef $aSt, ByRef $tk, $tkFor)
-
-
     Local $iStRet = __AuAST_AddBranch($aSt, $AP_BR_FOR, "", -1, "", _
             $tkFor)
 
@@ -705,10 +696,8 @@ Func __AuParse_ParseFor(ByRef $lexer, ByRef $aSt, ByRef $tk, $tkFor)
 
         ; Parse From
         $iFrom = __AuParse_ParseExpr($lexer, $aSt, $tk)
-        If @error Then
-            ; Error: Error parsing expression
-            Return SetError(@error, 0, $iFrom)
-        EndIf
+        If @error Then Return SetError(@error, 0, $iFrom)
+
         $aSt[$iStRet][$AP_STI_LEFT] = $iFrom
 
         If Not __AuParse_Accept($lexer, $tk, $AL_TOK_KEYWORD, "To") Then
@@ -718,10 +707,8 @@ Func __AuParse_ParseFor(ByRef $lexer, ByRef $aSt, ByRef $tk, $tkFor)
 
         ; Parse To
         $iTo = __AuParse_ParseExpr($lexer, $aSt, $tk)
-        If @error Then
-            ; Error: Error parsing expression
-            Return SetError(@error, 0, $iTo)
-        EndIf
+        If @error Then Return SetError(@error, 0, $iTo)
+
         $aSt[$iStRet][$AP_STI_LEFT] &= "," & $iTo
 
         If __AuParse_Accept($lexer, $tk, $AL_TOK_KEYWORD, "Step") Then
@@ -776,12 +763,6 @@ Func __AuParse_ParseFor(ByRef $lexer, ByRef $aSt, ByRef $tk, $tkFor)
     WEnd
     $aSt[$iStRet][$AP_STI_RIGHT] = StringTrimRight($aSt[$iStRet][$AP_STI_RIGHT], 1)
 
-    If Not __AuParse_Accept($lexer, $tk, $AL_TOK_EOL) _
-            And Not __AuParse_Accept($lexer, $tk, $AL_TOK_EOF) Then
-        ; Error: Extra characters on line
-        Return SetError(@ScriptLineNumber, 0, 0)
-    EndIf
-
     Return $iStRet
 EndFunc   ;==>__AuParse_ParseFor
 
@@ -815,11 +796,6 @@ Func __AuParse_ParseDo(ByRef $lexer, ByRef $aSt, ByRef $tk, $tkDo)
         Return SetError(@error, 0, $iCondition)
     EndIf
     $aSt[$iStRet][$AP_STI_LEFT] = $iCondition
-
-    If Not __AuParse_Accept($lexer, $tk, $AL_TOK_EOL) Then
-        ; Error: Extra characters on line
-        Return SetError(@ScriptLineNumber, 0, 0)
-    EndIf
 
     Return $iStRet
 EndFunc   ;==>__AuParse_ParseDo
@@ -881,11 +857,6 @@ Func __AuParse_ParseSelect(ByRef $lexer, ByRef $aSt, ByRef $tk, $tkSelect)
         $aSt[$iCase][$AP_STI_RIGHT] = StringTrimRight($aSt[$iCase][$AP_STI_RIGHT], 1)
     EndIf
     $aSt[$iStRet][$AP_STI_RIGHT] = StringTrimRight($aSt[$iStRet][$AP_STI_RIGHT], 1)
-
-    If Not __AuParse_Accept($lexer, $tk, $AL_TOK_EOL) Then
-        ; Extra characters on line
-        Return SetError(@ScriptLineNumber, 0, 0)
-    EndIf
 
     Return $iStRet
 EndFunc   ;==>__AuParse_ParseSelect
@@ -965,11 +936,6 @@ Func __AuParse_ParseSwitch(ByRef $lexer, ByRef $aSt, ByRef $tk, $tkSwitch)
         $aSt[$iCase][$AP_STI_RIGHT] = StringTrimRight($aSt[$iCase][$AP_STI_RIGHT], 1)
     EndIf
     $aSt[$iStRet][$AP_STI_RIGHT] = StringTrimRight($aSt[$iStRet][$AP_STI_RIGHT], 1)
-
-    If Not __AuParse_Accept($lexer, $tk, $AL_TOK_EOL) Then
-        ; Extra characters on line
-        Return SetError(@ScriptLineNumber, 0, 0)
-    EndIf
 
     Return $iStRet
 EndFunc   ;==>__AuParse_ParseSwitch
@@ -1108,14 +1074,12 @@ Func __AuParse_ParseFuncDecl(ByRef $lexer, ByRef $aSt, ByRef $tk)
     Return $iStRet
 EndFunc   ;==>__AuParse_ParseFuncDecl
 
-Func __AuParse_ParseEnumDecls(ByRef $lexer, ByRef $aSt, ByRef $tk, $iFlags, $tkEnum)
+Func __AuParse_ParseEnumDecls(ByRef $lexer, ByRef $aSt, ByRef $tk, $iStRet)
     Local $var, $iValue, $j, $iIncrement = 0
     Local $sDecls = ""
 
-    $iStRet = __AuAST_AddBranch($aSt, $AP_BR_ENUMDEF, $iFlags, "", "", $tkEnum)
-
     Do
-        $iDecl = __AuAST_AddBranch($aSt, $AP_BR_DECL, BitOR($iFlags, $AP_VARF_ENUM), -1, -1)
+        $iDecl = __AuAST_AddBranch($aSt, $AP_BR_DECL, $aSt[$iStRet][$AP_STI_VALUE], -1, -1)
 
         ; Add variable
         $var = $tk
@@ -1141,16 +1105,10 @@ Func __AuParse_ParseEnumDecls(ByRef $lexer, ByRef $aSt, ByRef $tk, $iFlags, $tkE
 
     $aSt[$iStRet][$AP_STI_LEFT] = StringTrimRight($aSt[$iStRet][$AP_STI_LEFT], 1)
 
-    If Not __AuParse_Accept($lexer, $tk, $AL_TOK_EOL) _
-            And Not __AuParse_Accept($lexer, $tk, $AL_TOK_EOF) Then
-        ; Error: Expected end of line
-        Return SetError(@ScriptLineNumber, 0, 0)
-    EndIf
-
     Return $iStRet
 EndFunc   ;==>__AuParse_ParseEnumDecls
 
-Func __AuParse_ParseDecls(ByRef $lexer, ByRef $aSt, ByRef $tk, $iFlags)
+Func __AuParse_ParseDecls(ByRef $lexer, ByRef $aSt, ByRef $tk, $iFirstDecl)
     Local $iVar, $iValue, $i
 
     Local $iStRet = ""
@@ -1158,7 +1116,7 @@ Func __AuParse_ParseDecls(ByRef $lexer, ByRef $aSt, ByRef $tk, $iFlags)
 
     Do
         ; Parsing new declaration/definition
-        $iDecl = __AuAST_AddBranch($aSt, $AP_BR_DECL, $iFlags, -1, -1)
+        $iDecl = __AuAST_AddBranch($aSt, $AP_BR_DECL, $aSt[$iFirstDecl][$AP_STI_VALUE], -1, -1)
         $iStRet &= $iDecl & ","
 
         ; Parse Variable
@@ -1190,12 +1148,6 @@ Func __AuParse_ParseDecls(ByRef $lexer, ByRef $aSt, ByRef $tk, $iFlags)
     Until Not __AuParse_Accept($lexer, $tk, $AL_TOK_COMMA)
 
     $iStRet = StringTrimRight($iStRet, 1)
-
-    If Not __AuParse_Accept($lexer, $tk, $AL_TOK_EOL) _
-            And Not __AuParse_Accept($lexer, $tk, $AL_TOK_EOF) Then
-        ; Error: Expected end of line
-        Return SetError(@ScriptLineNumber, 0, 0)
-    EndIf
 
     Return $iStRet
 EndFunc   ;==>__AuParse_ParseDecls
@@ -1304,18 +1256,26 @@ EndFunc   ;==>__AuParse_ParseArrayLiteral
 
 
 Func __AuParse_GetTok(ByRef $lexer, ByRef $tk)
+    Local $t
     Do
-        $tk = _Ault_LexerStep($lexer)
+        $t = _Ault_LexerStep($lexer)
         If @error Then
-            ConsoleWrite("Lexer Error: " & @error & @LF)
+            Return SetError(@error, 0, $t)
         EndIf
-    Until $tk[$AL_TOKI_TYPE] <> $AL_TOK_COMMENT
+    Until $t[$AL_TOKI_TYPE] <> $AL_TOK_COMMENT
+
+    $tk = $t
 EndFunc   ;==>__AuParse_GetTok
 
 Func __AuParse_Accept(ByRef $lexer, ByRef $tk, $iTokType = Default, $sTokData = Default)
     If $iTokType <> Default And $tk[$AL_TOKI_TYPE] <> $iTokType Then Return False
     If $sTokData <> Default And $tk[$AL_TOKI_DATA] <> $sTokData Then Return False
 
-    __AuParse_GetTok($lexer, $tk)
+    Local $err = __AuParse_GetTok($lexer, $tk)
+    If @error Then
+        ; Error in the next token
+        Return SetError(@error, 0, $err)
+    EndIf
+
     Return True
 EndFunc   ;==>__AuParse_Accept
