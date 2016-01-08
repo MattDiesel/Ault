@@ -40,11 +40,15 @@ Func _Ault_Deparse(Byref Const $aSt, $iBr = 1, $sIndent = "")
 
         Case $AP_BR_FUNCCALL
             $sOut = _Ault_Deparse($aSt, $aSt[$iBr][$AP_STI_LEFT]) & "("
-            $aSplit = StringSplit($aSt[$iBr][$AP_STI_RIGHT], ",")
-            For $i = 1 To $aSplit[0]
-                $sOut &= _Ault_Deparse($aSt, $aSplit[$i]) & ", "
-            Next
-            Return StringTrimRight($sOut, 2) & ")"
+
+            If $aSt[$iBr][$AP_STI_RIGHT] <> "" Then
+                $aSplit = StringSplit($aSt[$iBr][$AP_STI_RIGHT], ",")
+                For $i = 1 To $aSplit[0]
+                    $sOut &= _Ault_Deparse($aSt, $aSplit[$i]) & ", "
+                Next
+                $sOut = StringTrimRight($sOut, 2)
+            EndIf
+            Return $sOut & ")"
 
         Case $AP_BR_FUNCDEF
             $sOut = "Func " & $aSt[$iBr][$AP_STI_VALUE] & "("
