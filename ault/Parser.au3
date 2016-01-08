@@ -421,6 +421,10 @@ Func __AuParse_ParseLine(ByRef $lexer, ByRef $aSt, ByRef $tk, $fTopLevel = False
                     $iStRet = __AuParse_ParseWhile($lexer, $aSt, $tk, $tkFirst)
                     If @error Then Return SetError(@error, 0, $iStRet)
 
+                Case "For"
+                    $iStRet = __AuParse_ParseFor($lexer, $aSt, $tk, $tkFirst)
+                    If @error Then Return SetError(@error, 0, $iStRet)
+
                 Case "Select"
                     $iStRet = __AuParse_ParseSelect($lexer, $aSt, $tk, $tkFirst)
                     If @error Then Return SetError(@error, 0, $iStRet)
@@ -513,8 +517,8 @@ Func __AuParse_ParseLine(ByRef $lexer, ByRef $aSt, ByRef $tk, $fTopLevel = False
 
                 Case Else
                     Return SetError(@ScriptLineNumber, 0, _
-                            _Error_Create("Keyword '" & $tk[$AL_TOKI_DATA] & "' not valid at the start of a line.", _
-                                $aSt, $iStRet, $lexer, $tk))
+                            _Error_Create("Keyword '" & $tkFirst[$AL_TOKI_DATA] & "' not valid at the start of a line.", _
+                                $aSt, $iStRet, $lexer, $tkFirst))
             EndSwitch
 
         Case Else
