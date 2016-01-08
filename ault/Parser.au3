@@ -376,7 +376,7 @@ Func __AuParse_ParseLine(ByRef $lexer, ByRef $aSt, ByRef $tk, $fTopLevel = False
 
                 Case "ContinueCase"
                     $iStRet = __AuAST_AddBranchTok($aSt, $tkFirst)
-                    $aSt[$iStRet][$AL_STI_BRTYPE] = $AP_BR_STMT
+                    $aSt[$iStRet][$AP_STI_TYPE] = $AP_BR_STMT
 
                 Case "Return", "ExitLoop", "ContinueLoop", "Exit"
                     $iStRet = __AuAST_AddBranchTok($aSt, $tkFirst)
@@ -392,7 +392,7 @@ Func __AuParse_ParseLine(ByRef $lexer, ByRef $aSt, ByRef $tk, $fTopLevel = False
 
                 Case "Redim"
                     $iStRet = __AuAST_AddBranchTok($aSt, $tkFirst)
-                    $aSt[$iStRet][$AL_STI_BRTYPE] = $AP_BR_STMT
+                    $aSt[$iStRet][$AP_STI_TYPE] = $AP_BR_STMT
 
                     ; Statements can take an expression
                     If $tk[$AL_TOKI_TYPE] <> $AL_TOK_EOL Then
@@ -504,7 +504,7 @@ Func __AuParse_ParseLine(ByRef $lexer, ByRef $aSt, ByRef $tk, $fTopLevel = False
 
                     ; Parse variable list
                     If BitAND($i, $AP_VARF_ENUM) Then
-                        $aSt[$iStRet][$AL_STI_BRTYPE] = $AP_BR_ENUMDEF ; Correct the type
+                        $aSt[$iStRet][$AP_STI_TYPE] = $AP_BR_ENUMDEF ; Correct the type
                         $iStRet = __AuParse_ParseEnumDecls($lexer, $aSt, $tk, $i, $iStRet)
                     Else
                         $iStRet = __AuParse_ParseDecls($lexer, $aSt, $tk, $iStRet)
