@@ -17,7 +17,7 @@ Func _Ault_Deparse(Byref Const $aSt, $iBr = 1, $sIndent = "")
             Next
             Return $sOut
 
-        Case $AP_BR_NUMBER, $AP_BR_STR, $AP_BR_VARIABLE, $AP_BR_MACRO, $AP_BR_PREPROC, $AP_BR_KEYWORD, $AP_BR_FUNC
+        Case $AP_BR_NUMBER, $AP_BR_STR, $AP_BR_VARIABLE, $AP_BR_MACRO, $AP_BR_PREPROC, $AP_BR_KEYWORD, $AP_BR_FUNC, $AP_BR_WORD
             Return $aSt[$iBr][$AP_STI_VALUE]
 
         Case $AP_BR_OP
@@ -290,11 +290,11 @@ Func _Ault_Deparse(Byref Const $aSt, $iBr = 1, $sIndent = "")
 
             Return $sOut
 
-        Case $AP_BR_RETURN
+        Case $AP_BR_STMT
             If $aSt[$iBr][$AP_STI_LEFT] = "" Then
-                Return "Return"
+                Return $aSt[$iBr][$AP_STI_VALUE]
             Else
-                Return "Return " & _Ault_Deparse($aSt, $aSt[$iBr][$AP_STI_LEFT])
+                Return $aSt[$iBr][$AP_STI_VALUE] & " " & _Ault_Deparse($aSt, $aSt[$iBr][$AP_STI_LEFT])
             EndIf
 
         Case $AP_BR_REDIM

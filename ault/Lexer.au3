@@ -268,6 +268,7 @@ Func _Ault_LexerStep(ByRef $lex)
                     Case StringIsAlpha($c)
                         $iState = $AL_ST_KEYWORD
                     Case Else
+                        _ArrayDisplay($lex)
                         ConsoleWrite($c & @LF)
                         ; ERROR: Invalid character
                         Return SetError(@ScriptLineNumber, 0, 0)
@@ -440,7 +441,7 @@ Func _Ault_LexerStep(ByRef $lex)
                             $iState = $AL_ST_PREPROCLINE_IGNORE
                         Case Else
                             If __AuLex_StrIsNewLine($c) Then
-                                __AuLex_PrevChar($lex)
+                                ; __AuLex_PrevChar($lex)
                                 $tokRet[$AL_TOKI_TYPE] = $AL_TOK_PREPROC
                                 ExitLoop
                             Else
@@ -450,7 +451,7 @@ Func _Ault_LexerStep(ByRef $lex)
                 EndIf
             Case $AL_ST_PREPROCLINE
                 If __AuLex_StrIsNewLine($c) Or $c = "" Then
-                    __AuLex_PrevChar($lex)
+                    ; __AuLex_PrevChar($lex)
                     $tokRet[$AL_TOKI_TYPE] = $AL_TOK_PREPROC
                     ExitLoop
                 EndIf

@@ -75,6 +75,7 @@ Global Enum $AP_BR_NUMBER = $AL_TOK_NUMBER, _ ; Value
         $AP_BR_MACRO = $AL_TOK_MACRO, _ ; Name
         $AP_BR_PREPROC = $AL_TOK_PREPROC, _ ; Line
         $AP_BR_KEYWORD = $AL_TOK_KEYWORD, _ ; Keyword
+        $AP_BR_WORD = $AL_TOK_WORD, _ ; Word
         $AP_BR_FUNC = $AL_TOK_FUNC, _ ; Function
         $AP_BR_FILE = $AL_TOK_INCLUDE, _ ; Include
         $AP_BR_ENUMDEF = 100, _ ; Flags|0|Declarations (NB: Enums only)

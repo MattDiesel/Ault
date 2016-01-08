@@ -20,9 +20,9 @@
 ; Until $aTok[$AL_TOKI_TYPE] = $AL_TOK_EOF
 
 
-; Local $a = _Ault_ParseFile("C:\Program Files (x86)\AutoIt3\Beta\Include\Array.au3")
-Local $a = _Ault_ParseFile("ExampleScript.au3", $AL_FLAG_AUTOINCLUDE)
-; Local $a = _Ault_ParseFile("ault\Deparser.au3")
+; Local $a = _Ault_ParseFile("C:\Program Files (x86)\AutoIt3\Beta\Include\WinAPI.au3")
+; Local $a = _Ault_ParseFile("ExampleScript.au3", $AL_FLAG_AUTOINCLUDE)
+Local $a = _Ault_ParseFile("ault\Parser.au3")
 
 If @error Then
     _Ault_ErrorBox($a)

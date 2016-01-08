@@ -63,7 +63,7 @@ Func _Ault_ParseChild(ByRef $lexer, ByRef $aSt, $tkIncl = 0)
             ExitLoop
         EndIf
 
-        $aSt[$iSt][$AP_STI_LEFT] &= $i & ","
+        If $i Then $aSt[$iSt][$AP_STI_LEFT] &= $i & ","
     WEnd
     $aSt[$iSt][$AP_STI_LEFT] = StringTrimRight($aSt[$iSt][$AP_STI_LEFT], 1)
 
@@ -237,7 +237,7 @@ Func __AuParse_ParseLine(ByRef $lexer, ByRef $aSt, ByRef $tk, $fTopLevel = False
 
     ; Ignore empty lines?
     If __AuParse_Accept($lexer, $tk, $AL_TOK_EOL) Then
-        Return __AuAST_AddBranchTok($aSt, $tkFirst)
+        Return 0 ; __AuAST_AddBranchTok($aSt, $tkFirst)
     EndIf
 
     Select
@@ -251,8 +251,20 @@ Func __AuParse_ParseLine(ByRef $lexer, ByRef $aSt, ByRef $tk, $fTopLevel = False
         Case $fTopLevel And __AuParse_Accept($lexer, $tk, $AL_TOK_KEYWORD, "Func")
             $iStRet = __AuParse_ParseFuncDecl($lexer, $aSt, $tk)
 
-        Case Not $fTopLevel And __AuParse_Accept($lexer, $tk, $AL_TOK_KEYWORD, "Return")
-            $iStRet = __AuAST_AddBranch($aSt, $AP_BR_RETURN, "", "", "", _
+        Case Not $fTopLevel And __AuParse_Accept($lexer, $tk, $AL_TOK_KEYWORD, "ContinueCase")
+            $iStRet = __AuAST_AddBranch($aSt, $AP_BR_STMT, $tkFirst[$AL_TOKI_DATA], "", "", _
+                    $tkFirst[$AL_TOKI_ABS], $tkFirst[$AL_TOKI_LINE], $tkFirst[$AL_TOKI_COL])
+
+            If Not __AuParse_Accept($lexer, $tk, $AL_TOK_EOL) Then
+                ; Expecting new line after continuecase
+                Return SetError(@ScriptLineNumber, 0, 0)
+            EndIf
+
+        Case Not $fTopLevel And (__AuParse_Accept($lexer, $tk, $AL_TOK_KEYWORD, "Return") Or _
+                __AuParse_Accept($lexer, $tk, $AL_TOK_KEYWORD, "ContinueLoop") Or _
+                __AuParse_Accept($lexer, $tk, $AL_TOK_KEYWORD, "ExitLoop") Or _
+                __AuParse_Accept($lexer, $tk, $AL_TOK_KEYWORD, "Exit"))
+            $iStRet = __AuAST_AddBranch($aSt, $AP_BR_STMT, $tkFirst[$AL_TOKI_DATA], "", "", _
                     $tkFirst[$AL_TOKI_ABS], $tkFirst[$AL_TOKI_LINE], $tkFirst[$AL_TOKI_COL])
 
             If Not __AuParse_Accept($lexer, $tk, $AL_TOK_EOL) Then
@@ -596,7 +608,7 @@ Func __AuParse_ParseIf(ByRef $lexer, ByRef $aSt, ByRef $tk, $tkIf)
                     Return SetError(@error, 0, $i)
                 EndIf
 
-                $aSt[$iElseif][$AP_STI_RIGHT] &= $i & ","
+                If $i Then $aSt[$iElseif][$AP_STI_RIGHT] &= $i & ","
             EndIf
         WEnd
 
@@ -648,7 +660,7 @@ Func __AuParse_ParseWhile(ByRef $lexer, ByRef $aSt, ByRef $tk, $tkWhile)
             Return SetError(@error, 0, $i)
         EndIf
 
-        $aSt[$iStRet][$AP_STI_RIGHT] &= $i & ","
+        If $i Then $aSt[$iStRet][$AP_STI_RIGHT] &= $i & ","
     WEnd
     $aSt[$iStRet][$AP_STI_RIGHT] = StringTrimRight($aSt[$iStRet][$AP_STI_RIGHT], 1)
 
@@ -760,7 +772,7 @@ Func __AuParse_ParseFor(ByRef $lexer, ByRef $aSt, ByRef $tk, $tkFor)
             Return SetError(@error, 0, $i)
         EndIf
 
-        $aSt[$iStRet][$AP_STI_RIGHT] &= $i & ","
+        If $i Then $aSt[$iStRet][$AP_STI_RIGHT] &= $i & ","
     WEnd
     $aSt[$iStRet][$AP_STI_RIGHT] = StringTrimRight($aSt[$iStRet][$AP_STI_RIGHT], 1)
 
@@ -792,7 +804,7 @@ Func __AuParse_ParseDo(ByRef $lexer, ByRef $aSt, ByRef $tk, $tkDo)
             Return SetError(@error, 0, $i)
         EndIf
 
-        $aSt[$iStRet][$AP_STI_RIGHT] &= $i & ","
+        If $i Then $aSt[$iStRet][$AP_STI_RIGHT] &= $i & ","
     WEnd
     $aSt[$iStRet][$AP_STI_RIGHT] = StringTrimRight($aSt[$iStRet][$AP_STI_RIGHT], 1)
 
@@ -860,7 +872,7 @@ Func __AuParse_ParseSelect(ByRef $lexer, ByRef $aSt, ByRef $tk, $tkSelect)
                 Return SetError(@error, 0, $iBody)
             EndIf
 
-            $aSt[$iCase][$AP_STI_RIGHT] &= $iBody & ","
+            If $iBody Then $aSt[$iCase][$AP_STI_RIGHT] &= $iBody & ","
         EndIf
     WEnd
 
@@ -944,7 +956,7 @@ Func __AuParse_ParseSwitch(ByRef $lexer, ByRef $aSt, ByRef $tk, $tkSwitch)
                 Return SetError(@error, 0, $iBody)
             EndIf
 
-            $aSt[$iCase][$AP_STI_RIGHT] &= $iBody & ","
+            If $iBody Then $aSt[$iCase][$AP_STI_RIGHT] &= $iBody & ","
         EndIf
     WEnd
 
@@ -1089,7 +1101,7 @@ Func __AuParse_ParseFuncDecl(ByRef $lexer, ByRef $aSt, ByRef $tk)
             Return SetError(@error, 0, $i)
         EndIf
 
-        $aSt[$iStRet][$AP_STI_RIGHT] &= $i & ","
+        If $i Then $aSt[$iStRet][$AP_STI_RIGHT] &= $i & ","
     WEnd
     $aSt[$iStRet][$AP_STI_RIGHT] = StringTrimRight($aSt[$iStRet][$AP_STI_RIGHT], 1)
 
@@ -1273,7 +1285,7 @@ Func __AuParse_ParseArrayLiteral(ByRef $lexer, ByRef $aSt, ByRef $tk, $tkOBrack)
             EndIf
         EndIf
 
-        $aSt[$iStRet][$AP_STI_LEFT] &= $iExpr & ","
+        If $iExpr Then $aSt[$iStRet][$AP_STI_LEFT] &= $iExpr & ","
 
         If __AuParse_Accept($lexer, $tk, $AL_TOK_EBRACK) Then
             ExitLoop
@@ -1295,7 +1307,7 @@ Func __AuParse_GetTok(ByRef $lexer, ByRef $tk)
     Do
         $tk = _Ault_LexerStep($lexer)
         If @error Then
-            ConsoleWrite("Lexer Error" & @LF)
+            ConsoleWrite("Lexer Error: " & @error & @LF)
         EndIf
     Until $tk[$AL_TOKI_TYPE] <> $AL_TOK_COMMENT
 EndFunc   ;==>__AuParse_GetTok

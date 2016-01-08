@@ -53,6 +53,12 @@ Func __Error_GetLine(ByRef Const $lexer, $tk)
     Local $iMaxLine = 256
     Local $abs = $tk[$AL_TOKI_ABS]
 
+    ; Remove whitespace from the start of the line.
+    Local $sLine = StringMid($lexer[$AL_LEXI_DATA], $iStart, $iEnd - $iStart)
+    $sLine = StringStripWS($sLine, 1)
+    $iStart = $iEnd - StringLen($sLine)
+
+
     If $iEnd - $iStart > $iMaxLine Then ; Limit line length to keep it readable
 
         If $abs - $iStart < $iMaxLine Then
