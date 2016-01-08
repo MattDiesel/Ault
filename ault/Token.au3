@@ -59,10 +59,17 @@ Global Enum _
 Func __AuTok_TypeToStr($iTok)
     If $iTok >= $_AL_TOK_COUNT Or $iTok < 0 Then Return "Token???"
     Return $_AL_TOK_NAMES[$iTok]
-EndFunc
+EndFunc   ;==>__AuTok_TypeToStr
 
 
 Func __AuTok_Make($iType = 0, $sData = "", $iAbs = -1, $iLine = -1, $iCol = -1)
     Local $tokRet[$_AL_TOKI_COUNT] = [$iType, $sData, $iAbs, $iLine, $iCol]
     Return $tokRet
-EndFunc
+EndFunc   ;==>__AuTok_Make
+
+Func __AuTok_Is(ByRef Const $tk, $iTokType = Default, $sTokData = Default)
+    If $iTokType <> Default And $tk[$AL_TOKI_TYPE] <> $iTokType Then Return False
+    If $sTokData <> Default And $tk[$AL_TOKI_DATA] <> $sTokData Then Return False
+
+    Return True
+EndFunc   ;==>__AuTok_Is
