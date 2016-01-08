@@ -94,7 +94,6 @@ Global Enum $AP_BR_NUMBER = $AL_TOK_NUMBER, _ ; Value
         $AP_BR_GROUP, _ ; 0|Expr
         $AP_BR_LOOKUP, _ ; 0|Variable|Indexes
         $AP_BR_FUNCCALL, _ ; 0|Function|Arguments
-        $AP_BR_RETURN, _ ; 0|Expression
         $AP_BR_ARRAY, _ ; 0|Values
         $_AP_BR_COUNT
 
@@ -116,7 +115,6 @@ Global Const $_AP_BR_NAMES[$_AP_BR_COUNT - 100] = [ _
         "Group ()", _
         "Array Lookup", _
         "Function Call", _
-        "Return", _
         "Array Literal"]
 
 ; Syntax tree index
