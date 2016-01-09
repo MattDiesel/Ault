@@ -268,10 +268,9 @@ Func _Ault_LexerStep(ByRef $lex)
                     Case StringIsAlpha($c)
                         $iState = $AL_ST_KEYWORD
                     Case Else
-                        _ArrayDisplay($lex)
-                        ConsoleWrite($c & @LF)
                         ; ERROR: Invalid character
-                        Return SetError(@ScriptLineNumber, 0, 0)
+                        Return SetError(@ScriptLineNumber, 0, _
+                                _Error_CreateLex("Invalid character '" & $c & "'", $lex))
                 EndSelect
             Case $AL_ST_INT
                 If $c = '.' Then
@@ -344,7 +343,8 @@ Func _Ault_LexerStep(ByRef $lex)
                     EndIf
                 ElseIf $c = "" Or $c = @CRLF Then
                     ; ERROR: String not terminated
-                    Return SetError(@ScriptLineNumber, 0, 0)
+                    Return SetError(@ScriptLineNumber, 0, _
+                            _Error_CreateLex("String not terminated", $lex))
                 EndIf
             Case $AL_ST_STRINGD
                 If $c = '"' Then
@@ -384,7 +384,8 @@ Func _Ault_LexerStep(ByRef $lex)
                     $iState = $AL_ST_COMMENTMULTINL
                 ElseIf $c = "" Then
                     ; ERROR: Multiline comment not terminated
-                    Return SetError(@ScriptLineNumber, 0, 0)
+                    Return SetError(@ScriptLineNumber, 0, _
+                            _Error_CreateLex("Multiline comment not terminated", $lex))
                 EndIf
             Case $AL_ST_COMMENTMULTINL
                 If $c = "#" Then
@@ -470,17 +471,23 @@ Func _Ault_LexerStep(ByRef $lex)
                         Case '"'
                             If StringRight($c2, 1) <> '"' Then
                                 ; ERROR: Incorrect include line
-                                Return SetError(@ScriptLineNumber, 0, "")
+                                Return SetError(@ScriptLineNumber, 0, _
+                                        _Error_Create("Badly formatted include line", 0, 0, $lex, $tokRet))
                             EndIf
 
                             $c2 = StringTrimLeft(StringTrimRight($c2, 1), 1)
+
+                            $tokRet[$AL_TOKI_TYPE] = $AL_TOK_INCLUDE
+                            $tokRet[$AL_TOKI_DATA] = $c2
 
                             ; Resolve file path
                             $c2 = _AutoIt_ResolveInclude($lex[$AL_LEXI_FILENAME], $c2, True)
                             If @error Then
                                 ; Include file not found
-                                Return SetError(@ScriptLineNumber, 0, "")
+                                Return SetError(@ScriptLineNumber, 0, _
+                                        _Error_Create("File not found", 0, 0, $lex, $tokRet))
                             EndIf
+                            $tokRet[$AL_TOKI_DATA] = $c2
 
                             ; Check #include-once
                             Local $l = $lex, $fFound = False
@@ -497,7 +504,7 @@ Func _Ault_LexerStep(ByRef $lex)
                                 Local $lexNew = _Ault_CreateLexer($c2, $lex[$AL_LEXI_FLAGS])
                                 If @error Then
                                     ; Error creating new lexer
-                                    Return SetErroR(@error, 0, $lexNew)
+                                    Return SetError(@error, 0, $lexNew)
                                 EndIf
 
                                 $lexNew[$AL_LEXI_PARENT] = $lex
@@ -505,26 +512,30 @@ Func _Ault_LexerStep(ByRef $lex)
 
                                 ; Return include line
                                 __AuLex_PrevChar($lex)
-                                $tokRet[$AL_TOKI_TYPE] = $AL_TOK_INCLUDE
-                                $tokRet[$AL_TOKI_DATA] = $c2
                                 Return $tokRet
                             EndIf
 
                             $iState = $AL_ST_PREPROCLINE_IGNORE
                         Case '<'
-                            If StringRight($c2, 1) <> '>' Then
+                            If StringRight($c2, 1) <> '"' Then
                                 ; ERROR: Incorrect include line
-                                Return SetError(@ScriptLineNumber, 0, "")
+                                Return SetError(@ScriptLineNumber, 0, _
+                                        _Error_Create("Badly formatted include line", 0, 0, $lex, $tokRet))
                             EndIf
 
                             $c2 = StringTrimLeft(StringTrimRight($c2, 1), 1)
+
+                            $tokRet[$AL_TOKI_TYPE] = $AL_TOK_INCLUDE
+                            $tokRet[$AL_TOKI_DATA] = $c2
 
                             ; Resolve file path
                             $c2 = _AutoIt_ResolveInclude($lex[$AL_LEXI_FILENAME], $c2, False)
                             If @error Then
                                 ; Include file not found
-                                Return SetError(@ScriptLineNumber, 0, "")
+                                Return SetError(@ScriptLineNumber, 0, _
+                                        _Error_Create("File not found", 0, 0, $lex, $tokRet))
                             EndIf
+                            $tokRet[$AL_TOKI_DATA] = $c2
 
                             ; Check #include-once
                             Local $l = $lex, $fFound = False
@@ -541,7 +552,7 @@ Func _Ault_LexerStep(ByRef $lex)
                                 Local $lexNew = _Ault_CreateLexer($c2, $lex[$AL_LEXI_FLAGS])
                                 If @error Then
                                     ; Error creating new lexer
-                                    Return SetErroR(@error, 0, $lexNew)
+                                    Return SetError(@error, 0, $lexNew)
                                 EndIf
 
                                 $lexNew[$AL_LEXI_PARENT] = $lex
@@ -549,15 +560,14 @@ Func _Ault_LexerStep(ByRef $lex)
 
                                 ; Return include line
                                 __AuLex_PrevChar($lex)
-                                $tokRet[$AL_TOKI_TYPE] = $AL_TOK_INCLUDE
-                                $tokRet[$AL_TOKI_DATA] = $c2
                                 Return $tokRet
                             EndIf
 
                             $iState = $AL_ST_PREPROCLINE_IGNORE
                         Case Else
                             ; ERROR: Incorrect include line
-                            Return SetError(@ScriptLineNumber, 0, "")
+                            Return SetError(@ScriptLineNumber, 0, _
+                                    _Error_Create("Badly formatted include line", 0, 0, $lex, $tokRet))
                     EndSwitch
                 EndIf
             Case $AL_ST_LINECONT
@@ -572,10 +582,12 @@ Func _Ault_LexerStep(ByRef $lex)
                     $iState = $AL_ST_START
                 ElseIf $c = "" Then
                     ; Error: No line after a continuation
-                    Return SetError(@ScriptLineNumber, 0, 0)
+                    Return SetError(@ScriptLineNumber, 0, _
+                            _Error_Create("No line after a continuation", 0, 0, $lex, $tokRet))
                 ElseIf Not StringIsSpace($c) Then
                     ; ERROR: Something after a line continuation
-                    Return SetError(@ScriptLineNumber, 0, 0)
+                    Return SetError(@ScriptLineNumber, 0, _
+                            _Error_Create("Extra characters on line", 0, 0, $lex, $tokRet))
                 EndIf
             Case $AL_ST_KEYWORD
                 If Not (StringIsAlNum($c) Or $c = "_") Then
@@ -585,7 +597,8 @@ Func _Ault_LexerStep(ByRef $lex)
                 EndIf
             Case Else
                 ; Serious issue with the lexer.
-                Return SetError(@ScriptLineNumber, 0, 0)
+                Return SetError(@ScriptLineNumber, 0, _
+                        _Error_CreateLex("Lexer logic error", $lex))
         EndSwitch
     WEnd
 

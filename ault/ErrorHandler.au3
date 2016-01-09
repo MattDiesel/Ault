@@ -26,7 +26,7 @@ Func _Error_Create($sMessage, $aSt, $iBranch, $lexer, $tk, $iLineNumber = @Scrip
     $errRet[$AULT_ERRI_BRANCH] = $iBranch
     $errRet[$AULT_ERRI_LEXER] = $lexer
     $errRet[$AULT_ERRI_TOKEN] = $tk
-    $errRet[$AULT_ERRI_CODELINE] = __Error_GetLine($lexer, $tk)
+    $errRet[$AULT_ERRI_CODELINE] = __Error_GetLine($lexer, $tk[$AL_TOKI_ABS], $tk[$AL_TOKI_LINE], $tk[$AL_TOKI_COL])
     $errRet[$AULT_ERRI_CODELINE_COL] = @extended
     $errRet[$AULT_ERRI_SOURCE] = $iLineNumber
     $errRet[$AULT_ERRI_FILE] = $lexer[$AL_LEXI_FILENAME]
@@ -36,13 +36,31 @@ Func _Error_Create($sMessage, $aSt, $iBranch, $lexer, $tk, $iLineNumber = @Scrip
     Return $errRet
 EndFunc   ;==>_Error_Create
 
-Func __Error_GetLine(ByRef Const $lexer, $tk)
+Func _Error_CreateLex($sMessage, $lex, $iLineNumber = @ScriptLineNumber)
+    Local $errRet[$_AULT_ERRI_COUNT]
 
-    Local $iStart = $tk[$AL_TOKI_ABS] - $tk[$AL_TOKI_COL]
-    Local $iEnd = StringInStr($lexer[$AL_LEXI_DATA], @CR, 2, 1, $tk[$AL_TOKI_ABS], 4096)
+    $errRet[$AULT_ERRI_MSG] = $sMessage
+    $errRet[$AULT_ERRI_AST] = 0
+    $errRet[$AULT_ERRI_BRANCH] = 0
+    $errRet[$AULT_ERRI_LEXER] = $lex
+    $errRet[$AULT_ERRI_TOKEN] = 0
+    $errRet[$AULT_ERRI_CODELINE] = __Error_GetLine($lex, $lex[$AL_LEXI_ABS]-1, $lex[$AL_LEXI_LINE], $lex[$AL_LEXI_COL]-1)
+    $errRet[$AULT_ERRI_CODELINE_COL] = @extended
+    $errRet[$AULT_ERRI_SOURCE] = $iLineNumber
+    $errRet[$AULT_ERRI_FILE] = $lex[$AL_LEXI_FILENAME]
+    $errRet[$AULT_ERRI_LINE] = $lex[$AL_LEXI_LINE]
+    $errRet[$AULT_ERRI_COL] = $lex[$AL_LEXI_COL]
+
+    Return $errRet
+EndFunc
+
+Func __Error_GetLine(ByRef Const $lexer, $abs, $line, $col)
+
+    Local $iStart = $abs - $col
+    Local $iEnd = StringInStr($lexer[$AL_LEXI_DATA], @CR, 2, 1, $abs, 4096)
 
     If $iEnd = 0 Then ; Test for LF as well
-        $iEnd = StringInStr($lexer[$AL_LEXI_DATA], @LF, 2, 1, $tk[$AL_TOKI_ABS], 4096)
+        $iEnd = StringInStr($lexer[$AL_LEXI_DATA], @LF, 2, 1, $abs, 4096)
 
         If $iEnd = 0 Then
             ; Use EOF instead
@@ -51,7 +69,6 @@ Func __Error_GetLine(ByRef Const $lexer, $tk)
     EndIf
 
     Local $iMaxLine = 256
-    Local $abs = $tk[$AL_TOKI_ABS]
 
     ; Remove whitespace from the start of the line.
     Local $sLine = StringMid($lexer[$AL_LEXI_DATA], $iStart, $iEnd - $iStart)
