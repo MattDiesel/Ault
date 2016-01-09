@@ -439,7 +439,11 @@ Func _Ault_LexerStep(ByRef $lex)
                                 $lex[$AL_LEXI_INCLONCE] &= $lex[$AL_LEXI_FILENAME] & ";"
                             EndIf
 
-                            $iState = $AL_ST_PREPROCLINE_IGNORE
+                            If __AuLex_StrIsNewLine($c) Then
+                                $iState = $AL_ST_START
+                            Else
+                                $iState = $AL_ST_PREPROCLINE_IGNORE
+                            EndIf
                         Case Else
                             If __AuLex_StrIsNewLine($c) Then
                                 ; __AuLex_PrevChar($lex)
