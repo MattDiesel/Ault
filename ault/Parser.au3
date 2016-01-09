@@ -283,7 +283,12 @@ Func __AuParse_ParseLine(ByRef $lexer, ByRef $aSt, ByRef $tk, $fTopLevel = False
 
     Switch $tkFirst[$AL_TOKI_TYPE]
         Case $AL_TOK_INCLUDE
-            Return _Ault_ParseChild($lexer, $aSt, $tk, $tkFirst)
+            $iStRet = _Ault_ParseChild($lexer, $aSt, $tk, $tkFirst)
+
+            $err = __AuParse_GetTok($lexer, $tk)
+            If @error Then Return SetError(@error, 0, $err)
+
+            Return $iStRet
 
         Case $AL_TOK_PREPROC
             Return __AuAST_AddBranchTok($aSt, $tkFirst)
@@ -1130,8 +1135,6 @@ Func __AuParse_ParseDecls(ByRef $lexer, ByRef $aSt, ByRef $tk, $iFirstDecl)
 
             $aSt[$iDecl][$AP_STI_RIGHT] = $iValue
         EndIf
-
-        _ArrayDisplay($tk, @ScriptLineNumber)
 
         If $tk[$AL_TOKI_TYPE] <> $AL_TOK_COMMA Then
             ExitLoop
