@@ -521,7 +521,7 @@ Func _Ault_LexerStep(ByRef $lex)
 
                             $iState = $AL_ST_PREPROCLINE_IGNORE
                         Case '<'
-                            If StringRight($c2, 1) <> '"' Then
+                            If StringRight($c2, 1) <> '>' Then
                                 ; ERROR: Incorrect include line
                                 Return SetError(@ScriptLineNumber, 0, _
                                         _Error_Create("Badly formatted include line", 0, 0, $lex, $tokRet))
