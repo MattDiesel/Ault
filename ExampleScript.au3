@@ -1,4 +1,3 @@
 
 
-
-Local $a = MsgBox(0, "Hello", "World!")
+Local Enum $test = 4, $foo, $bar
