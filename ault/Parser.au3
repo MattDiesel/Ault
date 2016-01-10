@@ -517,7 +517,7 @@ Func __AuParse_ParseLine(ByRef $lexer, ByRef $aSt, ByRef $tk, $fTopLevel = False
                     ; Parse variable list
                     If BitAND($i, $AP_VARF_ENUM) Then
                         $aSt[$iStRet][$AP_STI_BRTYPE] = $AP_BR_ENUMDEF ; Correct the type
-                        $iStRet = __AuParse_ParseEnumDecls($lexer, $aSt, $tk, $i, $iStRet)
+                        $iStRet = __AuParse_ParseEnumDecls($lexer, $aSt, $tk, $iStRet)
                         If @error Then Return SEtError(@error, 0, $iStRet)
                     Else
                         $iStRet = __AuParse_ParseDecls($lexer, $aSt, $tk, $iStRet)
