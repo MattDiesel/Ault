@@ -284,6 +284,7 @@ Func __AuParse_ParseLine(ByRef $lexer, ByRef $aSt, ByRef $tk, $fTopLevel = False
     Switch $tkFirst[$AL_TOKI_TYPE]
         Case $AL_TOK_INCLUDE
             $iStRet = _Ault_ParseChild($lexer, $aSt, $tk, $tkFirst)
+            If @Error Then Return SetError(@error, 0, $iStRet)
 
             $err = __AuParse_GetTok($lexer, $tk)
             If @error Then Return SetError(@error, 0, $err)
@@ -379,6 +380,7 @@ Func __AuParse_ParseLine(ByRef $lexer, ByRef $aSt, ByRef $tk, $fTopLevel = False
                     EndIf
 
                     $iStRet = __AuParse_ParseFuncDecl($lexer, $aSt, $tk)
+                    If @error Then Return SetError(@error, 0, $iStRet)
 
                 Case "ContinueCase"
                     $iStRet = __AuAST_AddBranchTok($aSt, $tkFirst)
@@ -516,10 +518,11 @@ Func __AuParse_ParseLine(ByRef $lexer, ByRef $aSt, ByRef $tk, $fTopLevel = False
                     If BitAND($i, $AP_VARF_ENUM) Then
                         $aSt[$iStRet][$AP_STI_BRTYPE] = $AP_BR_ENUMDEF ; Correct the type
                         $iStRet = __AuParse_ParseEnumDecls($lexer, $aSt, $tk, $i, $iStRet)
+                        If @error Then Return SEtError(@error, 0, $iStRet)
                     Else
                         $iStRet = __AuParse_ParseDecls($lexer, $aSt, $tk, $iStRet)
+                        If @error Then Return SEtError(@error, 0, $iStRet)
                     EndIf
-                    If @error Then Return SEtError(@error, 0, $iStRet)
 
                 Case Else
                     Return SetError(@ScriptLineNumber, 0, _
