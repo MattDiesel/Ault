@@ -11,4 +11,4 @@ Mat
 
 The AST format takes a bit of explaining. Due to nested arrays being painful and messy, and no other compound data structures existing, the syntax tree is stored as a flat array of branches, where "pointing" to a child branch means using its index. This is practically the same as having a block of memory and creating a normal tree structure.
 
-Depending on the type of the branch, the VALUE, LEFT and RIGHT values have different meanings. It's on the todo list to document this better than it currently is in AST.au3
+Depending on the type of the branch, the VALUE, LEFT and RIGHT values have different meanings. The format is documented here: https://github.com/MattDiesel/Ault/wiki/AST-Format
