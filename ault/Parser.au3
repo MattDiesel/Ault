@@ -305,6 +305,8 @@ Func __AuParse_ParseLine(ByRef $lexer, ByRef $aSt, ByRef $tk, $fTopLevel = False
 
                 $iLHS = __AuParse_ParseArrayLookup($lexer, $aSt, $tk, $iLHS, $op)
                 If @error Then Return SetError(@error, 0, $iLHS)
+
+				$op = $tk
             EndIf
 
             ; Fix for = dual usage
