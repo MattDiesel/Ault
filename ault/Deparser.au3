@@ -193,6 +193,19 @@ Func _Ault_Deparse(Byref Const $aSt, $iBr = 1, $sIndent = "")
             $sOut &= $sIndent & "Next"
             Return $sOut
 
+		Case $AP_BR_FORIN
+            $sOut = "For " & _Ault_Deparse($aSt, $aSt[$iBr][$AP_STI_VALUE]) & " In " & _Ault_Deparse($aSt, $aSt[$iBr][$AP_STI_LEFT]) & @CRLF
+
+            If $aSt[$iBr][$AP_STI_RIGHT] <> "" Then
+                $aSplit = StringSplit($aSt[$iBr][$AP_STI_RIGHT], ",")
+                For $i = 1 To $aSplit[0]
+                    $sOut &= $sIndent & "    " & _Ault_Deparse($aSt, $aSplit[$i], $sIndent & "    ") & @CRLF
+                Next
+            EndIf
+            $sOut &= $sIndent & "Next"
+            Return $sOut
+
+
         Case $AP_BR_DO
             $sOut = "Do" & @CRLF
 
