@@ -80,6 +80,7 @@ Global Enum $AL_ST_START = -1, _
 ; _AuLex_LexTestAssert("<=", $AL_TOK_OP)
 ; _AuLex_LexTestAssert("<>", $AL_TOK_OP)
 ; _AuLex_LexTestAssert("^", $AL_TOK_OP)
+; _AuLex_LexTestAssert(".", $AL_TOK_OP)
 ; _AuLex_LexTestAssert("_Test", $AL_TOK_WORD)
 ; _AuLex_LexTestAssert("Test", $AL_TOK_WORD)
 ; _AuLex_LexTestAssert("Local", $AL_TOK_KEYWORD)
@@ -250,6 +251,9 @@ Func _Ault_LexerStep(ByRef $lex)
                         $tokRet[$AL_TOKI_TYPE] = $AL_TOK_OP
                         ExitLoop
                     Case $c = "^"
+                        $tokRet[$AL_TOKI_TYPE] = $AL_TOK_OP
+                        ExitLoop
+                    Case $c = "."
                         $tokRet[$AL_TOKI_TYPE] = $AL_TOK_OP
                         ExitLoop
                     Case $c = "_"

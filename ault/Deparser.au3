@@ -28,8 +28,12 @@ Func _Ault_Deparse(Byref Const $aSt, $iBr = 1, $sIndent = "")
                 Else
                     REturn $aSt[$iBr][$AP_STI_VALUE] & _Ault_Deparse($aSt, $aSt[$iBr][$AP_STI_LEFT])
                 EndIf
-            Else
-                Return _Ault_Deparse($aSt, $aSt[$iBr][$AP_STI_LEFT]) & " " & $aSt[$iBr][$AP_STI_VALUE] & " " & _Ault_Deparse($aSt, $aSt[$iBr][$AP_STI_RIGHT])
+			Else
+				If $aSt[$iBr][$AP_STI_VALUE] = "." Then ; Don't add space around access operator
+					Return _Ault_Deparse($aSt, $aSt[$iBr][$AP_STI_LEFT]) & $aSt[$iBr][$AP_STI_VALUE] & _Ault_Deparse($aSt, $aSt[$iBr][$AP_STI_RIGHT])
+				Else
+					Return _Ault_Deparse($aSt, $aSt[$iBr][$AP_STI_LEFT]) & " " & $aSt[$iBr][$AP_STI_VALUE] & " " & _Ault_Deparse($aSt, $aSt[$iBr][$AP_STI_RIGHT])
+				EndIf
             EndIf
 
         Case $AP_BR_ASSIGN
@@ -202,6 +206,7 @@ Func _Ault_Deparse(Byref Const $aSt, $iBr = 1, $sIndent = "")
                     $sOut &= $sIndent & "    " & _Ault_Deparse($aSt, $aSplit[$i], $sIndent & "    ") & @CRLF
                 Next
             EndIf
+            $sOut &= $sIndent & "Next"
             $sOut &= $sIndent & "Next"
             Return $sOut
 
