@@ -16,7 +16,8 @@ Global Enum _
 		$AP_OPPREC_ADD = 70, _
 		$AP_OPPREC_CAT = 60, _
 		$AP_OPPREC_CMP = 50, _
-		$AP_OPPREC_AND = 40
+		$AP_OPPREC_AND = 40, _
+		$AP_OPPREC_TERN = 30
 
 
 Func _Ault_ParseFile($sFile, $lexerFlags = $AL_FLAG_AUTOLINECONT)
@@ -207,6 +208,29 @@ Func __AuParse_ParseExpr_Led(ByRef $lexer, ByRef $aSt, ByRef $tk, $tkPrev, $left
 			If @error Then Return SetError(@error, 0, $right)
 
 			$aSt[$iStRet][$AP_STI_RIGHT] = $right
+
+		Case "?"
+			$iStRet = __AuAST_AddBranchTok($aSt, $tkPrev, $left, -1)
+
+			$rightT = __AuParse_ParseExpr($lexer, $aSt, $tk, __AuParse_ParseExpr_Lbp($tkPrev))
+			If @error Then Return SetError(@error, 0, $rightT)
+			$aSt[$iStRet][$AP_STI_RIGHT] = $rightT
+
+			$tkPrev = $tk
+			$acc = __AuParse_Accept($lexer, $tk, $AL_TOK_OP, ":")
+			If Not $acc Then
+				; Error: Incomplete Ternary Operator
+				Return SetError(@ScriptLineNumber, 0, _
+						_Error_Create("Expected `:` in ternary operator.", _
+						$aSt, $iStRet, $lexer, $tk))
+			EndIf
+			If @error Then Return SetError(@error, 0, $acc)
+
+			$rightF = __AuParse_ParseExpr($lexer, $aSt, $tk, __AuParse_ParseExpr_Lbp($tkPrev))
+			If @error Then Return SetError(@error, 0, $rightF)
+
+			$aSt[$iStRet][$AP_STI_RIGHT] &= "," & $rightF
+
 		Case Else
 			; Error: Operator not valid here
 			Return SetError(@ScriptLineNumber, 0, _
@@ -238,6 +262,8 @@ Func __AuParse_ParseExpr_Lbp($tk)
 				$iLbp = $AP_OPPREC_CMP
 			Case "And", "Or"
 				$iLbp = $AP_OPPREC_AND
+			Case "?", ":"
+				$iLbp = $AP_OPPREC_TERN
 		EndSwitch
 	EndIf
 
