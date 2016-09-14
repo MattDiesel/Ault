@@ -174,7 +174,7 @@ Func __AuParse_ParseExpr_Nud(ByRef $lexer, ByRef $aSt, ByRef $tk, $tkPrev)
 				If @error Then Return SetError(@error, 0, $err)
 
 				$i = __AuAST_AddBranchTok($aSt, $tkPrev)
-				$iStRet = __AuParse_ParseArrayLookup($lexer, $aSt, $tk, $i, $tkOBrack)
+				$iStRet = __AuParse_ParseArrayLookup($lexer, $aSt, $tk, $i, $tkOPar)
 				If @error Then Return SetError(@error, 0, $iStRet)
 			Else
 				$iStRet = __AuAST_AddBranchTok($aSt, $tkPrev)
