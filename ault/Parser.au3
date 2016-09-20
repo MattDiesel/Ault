@@ -158,6 +158,14 @@ Func __AuParse_ParseExpr_Nud(ByRef $lexer, ByRef $aSt, ByRef $tk, $tkPrev)
 
 			$aSt[$iStRet][$AP_STI_LEFT] = $i
 
+		Case $tkPrev[$AL_TOKI_TYPE] = $AL_TOK_OP And $tkPrev[$AL_TOKI_DATA] = "."
+			$iStRet = __AuAST_AddBranch($aSt, $AP_BR_OP, $tkPrev[$AL_TOKI_DATA], "", -1, $tkPrev)
+
+			$i = __AuParse_ParseExpr($lexer, $aSt, $tk, $AP_OPPREC_ACCESS)
+			If @error Then Return SetError(@error, 0, $i)
+
+			$aSt[$iStRet][$AP_STI_RIGHT] = $i
+
 		Case ($tkPrev[$AL_TOKI_TYPE] = $AL_TOK_FUNC) Or ($tkPrev[$AL_TOKI_TYPE] = $AL_TOK_WORD)
 			$tkOPar = $tk
 
