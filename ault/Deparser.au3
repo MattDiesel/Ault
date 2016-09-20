@@ -288,6 +288,8 @@ Func _Ault_Deparse(ByRef Const $aSt, $iBr = 1, $sIndent = "")
 			$sOut &= $sIndent & "EndSwitch"
 
 			Return $sOut
+		Case $AP_BR_CASERANGE
+			Return _Ault_Deparse($aSt, $aSt[$iBr][$AP_STI_LEFT]) & " To " & _Ault_Deparse($aSt, $aSt[$iBr][$AP_STI_RIGHT])
 
 		Case $AP_BR_LOOKUP
 			$sOut = _Ault_Deparse($aSt, $aSt[$iBr][$AP_STI_LEFT]) & "["

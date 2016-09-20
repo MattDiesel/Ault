@@ -936,6 +936,18 @@ Func __AuParse_ParseSwitch(ByRef $lexer, ByRef $aSt, ByRef $tk, $tkSwitch)
 					$iExpr = __AuParse_ParseExpr($lexer, $aSt, $tk)
 					If @error Then Return SetError(@error, 0, $iExpr)
 
+					$tkTo = $tk
+
+					If __AuParse_Accept($lexer, $tk, $AL_TOK_KEYWORD, "To") Then
+						$iRange = __AuAST_AddBranch($aSt, $AP_BR_CASERANGE, "", $iExpr, "", $tkTo)
+
+						$iExpr = __AuParse_ParseExpr($lexer, $aSt, $tk)
+						If @error Then Return SetError(@error, 0, $iExpr)
+
+						$aSt[$iRange][$AP_STI_RIGHT] = $iExpr
+						$iExpr = $iRange
+					EndIf
+
 					$aSt[$iCase][$AP_STI_LEFT] &= $iExpr & ","
 				Until Not __AuParse_Accept($lexer, $tk, $AL_TOK_COMMA)
 

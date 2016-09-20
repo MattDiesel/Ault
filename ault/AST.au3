@@ -89,6 +89,7 @@ Global Enum $AP_BR_NUMBER = $AL_TOK_NUMBER, _ ; Value
         $AP_BR_SELECT, _ ; 0|0|Cases
         $AP_BR_SWITCH, _ ; 0|Condition|Cases
         $AP_BR_CASE, _ ; [Else]|Condition|Body
+		$AP_BR_CASERANGE, _ ; 0|From|To
         $AP_BR_STMT, _ ; Name|Expression
         $AP_BR_REDIM, _ ; 0|Lookup|0
         $AP_BR_GROUP, _ ; 0|Expr
@@ -110,6 +111,7 @@ Global Const $_AP_BR_NAMES[$_AP_BR_COUNT - 100] = [ _
         "SELECT statement", _
         "SWITCH statement", _
         "CASE statement", _
+        "CASE range condition", _
         "Statement", _
         "ReDim", _
         "Group ()", _
