@@ -129,7 +129,7 @@ Global Enum $AL_ST_START = -1, _
 
 
 Func _Ault_CreateLexer($sFile, $iFlags)
-    Local $sData = FileRead($sFile)
+    Local $sData = FileRead($sFile) & @CRLF
     If @error Then Return SetError(1, 0, 0) ; File couldn't be read.
 
     Return _Ault_CreateLexerFromString($sFile, $sData, $iFlags)
