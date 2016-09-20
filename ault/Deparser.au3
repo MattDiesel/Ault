@@ -97,7 +97,13 @@ Func _Ault_Deparse(ByRef Const $aSt, $iBr = 1, $sIndent = "")
 
 			$sOut &= "Enum "
 
-			$aSplit = StringSplit($aSt[$iBr][$AP_STI_LEFT], ",")
+			; Check Step
+			If $aSt[$iBr][$AP_STI_RIGHT] <> "" Then
+				$aSplit = StringSplit($aSt[$iBr][$AP_STI_LEFT], ",")
+				$sOut &= "Step " & $aSplit[1] & $aSplit[2] & " "
+			EndIf
+
+			$aSplit = StringSplit($aSt[$iBr][$AP_STI_RIGHT], ",")
 			For $i = 1 To $aSplit[0]
 				$sOut &= _Ault_Deparse($aSt, $aSplit[$i]) & ", "
 			Next

@@ -78,7 +78,7 @@ Global Enum $AP_BR_NUMBER = $AL_TOK_NUMBER, _ ; Value
         $AP_BR_WORD = $AL_TOK_WORD, _ ; Word
         $AP_BR_FUNC = $AL_TOK_FUNC, _ ; Function
         $AP_BR_FILE = $AL_TOK_INCLUDE, _ ; Include
-        $AP_BR_ENUMDEF = 100, _ ; Flags|0|Declarations (NB: Enums only)
+        $AP_BR_ENUMDEF = 100, _ ; Flags|[StepOp,Step]|Declarations (NB: Enums only)
         $AP_BR_DECL, _ ; Flags|Variable|Value
         $AP_BR_FUNCDEF, _ ; Name|Parameters|Body
         $AP_BR_IF, _ ; Condition|Elseifs|Body

@@ -492,6 +492,9 @@ Func __AuParse_ParseLine(ByRef $lexer, ByRef $aSt, ByRef $tk, $fTopLevel = False
 					While $tk[$AL_TOKI_TYPE] = $AL_TOK_KEYWORD
 						Select
 							Case BitAND($aSt[$iStRet][$AP_STI_VALUE], $AP_VARF_ENUM)
+								; Check Step
+								If $tk[$AL_TOKI_DATA] = "Step" Then ExitLoop
+
 								; Wrong keyword, enum must come last
 								Return SetError(@ScriptLineNumber, 0, _
 										_Error_Create("Keyword not valid here", _
@@ -556,6 +559,50 @@ Func __AuParse_ParseLine(ByRef $lexer, ByRef $aSt, ByRef $tk, $fTopLevel = False
 					; Parse variable list
 					If BitAND($aSt[$iStRet][$AP_STI_VALUE], $AP_VARF_ENUM) Then
 						$aSt[$iStRet][$AP_STI_BRTYPE] = $AP_BR_ENUMDEF ; Correct the type
+
+						ConsoleWrite("Tr1" & @LF)
+
+						If $tk[$AL_TOKI_TYPE] = $AL_TOK_KEYWORD And $tk[$AL_TOKI_DATA] = "Step" Then
+							$err = __AuParse_GetTok($lexer, $tk)
+							If @error Then Return SetError(@error, 0, $err)
+
+							If $tk[$AL_TOKI_TYPE] <> $AL_TOK_OP Then
+								If $tk[$AL_TOKI_TYPE] = $AL_TOK_NUMBER Then
+									; Step is +N
+									$aSt[$iStRet][$AP_STI_LEFT] = "+," & $tk[$AL_TOKI_DATA]
+									__AuParse_Accept($lexer, $tk, $AL_TOK_NUMBER)
+								Else
+									; Error: Unexpected token
+									Return SetError(@ScriptLineNumber, 0, _
+											_Error_Create("Unexpected token, expecting a number.", _
+											$aSt, $iStRet, $lexer, $tk))
+								EndIf
+							Else
+						ConsoleWrite("Tr3" & @LF)
+								If StringInStr("+-*/", $tk[$AL_TOKI_DATA]) Then
+									$aSt[$iStRet][$AP_STI_LEFT] = $tk[$AL_TOKI_DATA] & ","
+									__AuParse_Accept($lexer, $tk, $AL_TOK_OP)
+
+									If $tk[$AL_TOKI_TYPE] = $AL_TOK_NUMBER Then
+										$aSt[$iStRet][$AP_STI_LEFT] &= $tk[$AL_TOKI_DATA]
+										__AuParse_Accept($lexer, $tk, $AL_TOK_NUMBER)
+									Else
+										; Expecting number
+										Return SetError(@ScriptLineNumber, 0, _
+												_Error_Create("Expecting number", _
+												$aSt, $iStRet, $lexer, $tk))
+									EndIf
+								Else
+									; Illegal step operator
+									Return SetError(@ScriptLineNumber, 0, _
+											_Error_Create("Illegal step operator", _
+											$aSt, $iStRet, $lexer, $tk))
+								EndIf
+							EndIf
+						EndIf
+
+						ConsoleWrite("Tr2" & @LF)
+
 						$iStRet = __AuParse_ParseEnumDecls($lexer, $aSt, $tk, $iStRet)
 						If @error Then Return SetError(@error, 0, $iStRet)
 					Else
@@ -1138,10 +1185,10 @@ Func __AuParse_ParseEnumDecls(ByRef $lexer, ByRef $aSt, ByRef $tk, $iStRet)
 		EndIf
 		$aSt[$iDecl][$AP_STI_RIGHT] = $iValue
 
-		$aSt[$iStRet][$AP_STI_LEFT] &= $iDecl & ","
+		$aSt[$iStRet][$AP_STI_RIGHT] &= $iDecl & ","
 	Until Not __AuParse_Accept($lexer, $tk, $AL_TOK_COMMA)
 
-	$aSt[$iStRet][$AP_STI_LEFT] = StringTrimRight($aSt[$iStRet][$AP_STI_LEFT], 1)
+	$aSt[$iStRet][$AP_STI_RIGHT] = StringTrimRight($aSt[$iStRet][$AP_STI_RIGHT], 1)
 
 	Return $iStRet
 EndFunc   ;==>__AuParse_ParseEnumDecls
